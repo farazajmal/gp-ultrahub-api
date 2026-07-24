@@ -5,6 +5,7 @@ from services.data_service import load_data
 from routes.clinics import router as clinic_router
 from routes.doctors import router as doctor_router
 from routes.search import router as search_router
+from routes.chat import router as chat_router
 
 
 app = FastAPI(
@@ -16,6 +17,7 @@ app = FastAPI(
 app.include_router(clinic_router)
 app.include_router(doctor_router)
 app.include_router(search_router)
+app.include_router(chat_router)
 
 
 @app.get("/")
