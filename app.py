@@ -12,6 +12,14 @@ app = FastAPI(
     title="GP UltraHub API",
     version="1.0.0"
 )
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://gp.neomedicalcenter.pk"],
+    allow_methods=["POST"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(clinic_router)
