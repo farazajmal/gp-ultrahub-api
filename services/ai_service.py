@@ -24,6 +24,14 @@ client = OpenAI(
 )
 
 
+import re
+
+GREETING_PATTERN = re.compile(
+    r"^\s*(hi+|hey+|hello+|hiya|good\s?morning|good\s?afternoon|good\s?evening|greetings)[\s!.,]*$",
+    re.IGNORECASE
+)
+
+
 def chat(session_id: str, message: str):
 
     # Save the user's message first
@@ -35,6 +43,25 @@ def chat(session_id: str, message: str):
 
     # Load updated conversation
     history = get_history(session_id)
+
+    # Step 0: If it's just a plain greeting, respond warmly
+    # instead of jumping straight into a follow-up question.
+    if GREETING_PATTERN.match(message.strip()):
+
+        reply = (
+            "Hi there! I'm the GP Ultra Hub assistant. I can help you find "
+            "the right doctor and get you to their booking page — just let "
+            "me know what you'd like to be seen for, or which doctor you'd "
+            "like to book."
+        )
+
+        add_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return reply
 
     # Step 1: Decide whether we need more information
     follow_up = needs_follow_up(history)
