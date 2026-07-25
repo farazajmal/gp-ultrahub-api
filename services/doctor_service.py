@@ -5,6 +5,41 @@ from utils.date_parser import parse_availability
 from services.ranking_service import score_medical_match
 
 
+import difflib
+import re
+
+
+def _normalize_name(name):
+    name = (name or "").lower()
+    name = re.sub(r'^dr\.?\s*', '', name)
+    return name.strip()
+
+
+def _doctor_name_matches(query, doctor_name, cutoff=0.7):
+    query_norm = _normalize_name(query)
+    name_norm = _normalize_name(doctor_name)
+
+    # Fast path: exact substring match (handles correct spellings as before)
+    if query_norm in name_norm:
+        return True
+
+    query_words = query_norm.split()
+    name_words = name_norm.split()
+
+    if not query_words or not name_words:
+        return False
+
+    # Word-by-word fuzzy match, so "Javed" still matches "Javaid"
+    for qw in query_words:
+        best_ratio = max(
+            (difflib.SequenceMatcher(None, qw, nw).ratio() for nw in name_words),
+            default=0
+        )
+        if best_ratio < cutoff:
+            return False
+
+    return True
+
 def get_all_doctors():
     data = load_data()
 
@@ -67,9 +102,9 @@ def search_doctors(
 
         for item in get_all_doctors():
 
-            doctor_name = (item.get("doctor") or "").lower()
+            doctor_name = item.get("doctor") or ""
 
-            if doctor.lower() not in doctor_name:
+            if not _doctor_name_matches(doctor, doctor_name):
                 continue
 
             if clinic:
@@ -292,9 +327,9 @@ def availability_search(intent):
 
         if requested_doctor:
 
-            doctor_name = (doctor.get("doctor") or "").lower()
+            doctor_name = doctor.get("doctor") or ""
 
-            if requested_doctor.lower() not in doctor_name:
+            if not _doctor_name_matches(requested_doctor, doctor_name):
                 continue
 
         # ----------------------------
