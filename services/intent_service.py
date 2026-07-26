@@ -104,6 +104,45 @@ recommend
 - User asks who they should see.
 - User wants the earliest available appointment.
 
+clinic_info
+- The user is asking about GP Ultra Hub's SERVICES, CLINIC LOCATIONS,
+  ADDRESSES, or PHONE NUMBERS — not asking to find or book a specific
+  doctor or provider.
+
+Examples of clinic_info questions:
+
+- "Do you offer weight loss programs?"
+- "Do you do skin checks?"
+- "What services do you provide?"
+- "Where is the Gladstone clinic?"
+- "What's the phone number for Calliope?"
+- "Do you offer telehealth?"
+- "What's involved in your chronic disease management program?"
+- "Is Burnett Heads bulk billing?"
+
+If the user is asking ABOUT a service or location (not asking to see
+a specific doctor for it), return:
+
+{
+  "intent":"clinic_info",
+  "doctor":null,
+  "clinic":null,
+  "any_clinic":false,
+  "provider_type":null,
+  "gender":null,
+  "day":null,
+  "preferred_time":null,
+  "interest":null
+}
+
+Do NOT use "clinic_info" if the user wants to actually be SEEN or
+BOOKED for something (e.g. "I need a GP for a mole check" is
+"recommend" with interest="mole check", NOT "clinic_info", because
+they want a doctor, not just information).
+
+The distinction is: clinic_info = asking FOR INFORMATION. search/
+recommend = asking to FIND OR BOOK a provider.
+
 general
 - Anything unrelated to finding or booking providers.
 
