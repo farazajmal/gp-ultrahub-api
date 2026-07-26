@@ -16,6 +16,11 @@ from services.search_state_service import (
     update_search_state,
     clear_search_state,
 )
+from services.memory_service import (
+    get_history,
+    add_message,
+)
+from services.data_service import load_services_data
 
 load_dotenv()
 
@@ -99,6 +104,59 @@ def chat(session_id: str, message: str):
             "Could you tell me what you'd like to be seen for, or which "
             "doctor you'd like to book?"
         )
+
+        add_message(session_id, "assistant", reply)
+        return reply
+
+    # Step 2.6: Clinic info questions (services, locations, phone numbers)
+    # — answered strictly from real scraped data, never invented.
+    if search_state.get("intent") == "clinic_info":
+
+        try:
+            services_data = load_services_data()
+        except Exception:
+            services_data = None
+
+        if not services_data:
+
+            reply = (
+                "I'm having trouble pulling up that information right now. "
+                "You can find our full list of services and clinic details "
+                "at https://gpultrahub.com.au/services/ or by calling your "
+                "nearest clinic."
+            )
+
+            add_message(session_id, "assistant", reply)
+            return reply
+
+        clinic_info_prompt = f"""
+You are the AI Receptionist for GP Ultra Hub, answering a question
+about clinic services or locations.
+
+Answer ONLY using the facts in the data below. Never invent services,
+addresses, phone numbers, or details that are not explicitly present
+in this data.
+
+If the question cannot be answered from this data, say so honestly
+and suggest the patient call their nearest clinic or visit
+https://gpultrahub.com.au/services/ — do not guess.
+
+Be warm, concise, and conversational. Do not mention APIs, JSON,
+databases, scrapers, or any technical/internal terms.
+
+Conversation:
+{json.dumps(history, indent=2)}
+
+Clinic Services and Locations Data:
+{json.dumps(services_data, indent=2)}
+"""
+
+        response = client.responses.create(
+            model="gpt-5.4-mini",
+            input=clinic_info_prompt,
+        )
+
+        reply = response.output_text
 
         add_message(session_id, "assistant", reply)
         return reply
