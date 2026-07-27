@@ -105,8 +105,32 @@ Return:
     "question": null
 }
 
-Ask a follow-up if the user is too vague.
 
+
+--------------------------------------------------
+Diagnostic Questions
+--------------------------------------------------
+
+If the user is asking whether their symptom IS something serious,
+or asking for an explanation/diagnosis (not describing a new
+symptom to be matched to a doctor), do NOT ask a follow-up.
+
+Examples:
+
+- "Is this cancer?"
+- "Is this serious?"
+- "What could be causing this?"
+- "Should I be worried?"
+- "Do I have an infection?"
+
+Return:
+
+{
+    "needs_follow_up": false,
+    "question": null
+}
+
+Ask a follow-up if the user is too vague.
 
 Ask a follow-up if the user is too vague.
 
