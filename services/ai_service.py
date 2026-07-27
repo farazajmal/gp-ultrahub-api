@@ -242,6 +242,50 @@ Clinic Services and Locations Data:
         return reply
 
 
+    # Multiple search results — list all of them directly from real
+    # data, never left to open-ended generation.
+    if (
+        result
+        and result["type"] == "search"
+        and result["data"]
+        and len(result["data"]) > 1
+    ):
+
+        doctors = result["data"]
+
+        lines = []
+        for d in doctors:
+            lines.append(
+                f"**{d['doctor']}** — GP UltraHub {d['clinic']}\n"
+                f"Next available: {d['availability']}\n"
+                f"Book here: {d['booking_url']}"
+            )
+
+        reply = (
+            "Here are a few suitable options:\n\n" + "\n\n".join(lines) +
+            "\n\nYou can open any of these booking pages to view all "
+            "available appointment times and choose what suits you best."
+        )
+
+        add_message(session_id, "assistant", reply)
+        return reply
+
+    # Search with no matches at all
+    if (
+        result
+        and result["type"] == "search"
+        and not result["data"]
+    ):
+
+        reply = (
+            "I couldn't find a matching doctor for that at this clinic. "
+            "Would you like me to check another location, or tell me a "
+            "bit more about what you need?"
+        )
+
+        add_message(session_id, "assistant", reply)
+        return reply
+
     # Single recommendation
     if (
         result
