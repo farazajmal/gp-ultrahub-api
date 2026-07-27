@@ -161,6 +161,31 @@ Clinic Services and Locations Data:
         add_message(session_id, "assistant", reply)
         return reply
 
+    # Step 2.7: Diagnostic questions — never diagnose, always redirect
+    # to a real doctor for a proper examination.
+    if search_state.get("intent") == "diagnostic_question":
+
+        last_doctor = search_state.get("last_recommended_doctor")
+
+        if last_doctor:
+            reply = (
+                f"I'm an AI assistant, so I'm not able to diagnose or assess "
+                f"that myself — but {last_doctor['doctor']} can take a "
+                f"proper look and give you a clear answer.\n\n"
+                f"Book here:\n{last_doctor['booking_url']}"
+            )
+        else:
+            reply = (
+                "I'm an AI assistant, so I'm not able to diagnose or assess "
+                "that myself — but a doctor can take a proper look and give "
+                "you a clear answer. Let me know what you'd like to be seen "
+                "for, or which clinic you'd prefer, and I'll point you to "
+                "the right doctor's booking page."
+            )
+
+        add_message(session_id, "assistant", reply)
+        return reply
+
     # Step 3: If we don't know the clinic yet, ask first
     clinic = (search_state.get("clinic") or "").lower()
     
@@ -203,6 +228,8 @@ Clinic Services and Locations Data:
 
         doctor = result["data"][0]
 
+        update_search_state(session_id, {"last_recommended_doctor": doctor})
+
         reply = (
             f"{doctor['doctor']} is available at GP UltraHub "
             f"{doctor['clinic']}.\n\n"
@@ -223,6 +250,9 @@ Clinic Services and Locations Data:
     ):
 
         doctor = result["data"]
+
+        update_search_state(session_id, {"last_recommended_doctor": doctor})
+
 
         reply = (
             f"{doctor['doctor']} is available at GP UltraHub "
