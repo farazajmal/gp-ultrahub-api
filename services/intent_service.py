@@ -143,6 +143,39 @@ they want a doctor, not just information).
 The distinction is: clinic_info = asking FOR INFORMATION. search/
 recommend = asking to FIND OR BOOK a provider.
 
+diagnostic_question
+- The user is asking whether their symptom IS a specific condition,
+  asking for an explanation of what something means, or asking if
+  they should be worried \u2014 rather than describing a new symptom
+  to be matched to a provider.
+
+Examples:
+
+- "Is this cancer?"
+- "Is this serious?"
+- "What could be causing this?"
+- "Should I be worried about this?"
+- "Do I have an infection?"
+- "What does that mean?"
+
+Return:
+
+{
+  "intent":"diagnostic_question",
+  "doctor":null,
+  "clinic":null,
+  "any_clinic":false,
+  "provider_type":null,
+  "gender":null,
+  "day":null,
+  "preferred_time":null,
+  "interest":null
+}
+
+Do NOT treat this the same as describing a NEW symptom (e.g. "now
+my knee hurts too" is still "recommend"). This intent is only for
+questions asking about diagnosis, severity, or cause.
+
 general
 - Anything unrelated to finding or booking providers.
 
