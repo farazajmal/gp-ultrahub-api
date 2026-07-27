@@ -176,8 +176,20 @@ def search_doctors(
 
 
 def score_doctor(doctor, intent, medical_scores):
-    
+
     score = 0
+
+    # If the request has no filters at all (no provider type, interest,
+    # clinic, or gender), this is a "list everyone" request rather than
+    # a targeted search. Give every doctor a baseline score so nothing
+    # gets excluded just for lacking matching criteria.
+    if (
+        not intent.get("provider_type")
+        and not intent.get("interest")
+        and not intent.get("clinic")
+        and not intent.get("gender")
+    ):
+        return 1
 
     # ----------------------------
     # Provider Type
