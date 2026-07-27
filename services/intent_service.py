@@ -398,6 +398,10 @@ If the user says any of the following:
 - First available
 - Earliest appointment
 - Anywhere
+- All doctors / a list of all doctors / every doctor
+- All clinics / across all clinics / combined
+- Everyone available
+- The full list of doctors
 
 Return:
 
