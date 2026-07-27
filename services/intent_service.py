@@ -13,7 +13,7 @@ client = OpenAI(
 )
 
 SYSTEM_PROMPT = """
-You are the intent extraction engine for the GP Ultra Hub AI Receptionist.
+You are the intent extraction engine for the GP UltraHub AI Receptionist.
 
 Your ONLY job is to convert the user's message into JSON.
 
@@ -105,7 +105,7 @@ recommend
 - User wants the earliest available appointment.
 
 clinic_info
-- The user is asking about GP Ultra Hub's SERVICES, CLINIC LOCATIONS,
+- The user is asking about GP UltraHub's SERVICES, CLINIC LOCATIONS,
   ADDRESSES, or PHONE NUMBERS — not asking to find or book a specific
   doctor or provider.
 
@@ -270,7 +270,7 @@ Also use GP for common skin conditions:
 Skin Cancer
 --------------------------------------------------
 
-GP Ultra Hub doctors are trained to assess and manage skin cancer concerns.
+GP UltraHub doctors are trained to assess and manage skin cancer concerns.
 
 If the user mentions:
 
@@ -445,7 +445,7 @@ Whichever clinic has the earliest appointment
 Clinic Names
 --------------------------------------------------
 
-Recognize the following GP Ultra Hub locations:
+Recognize the following GP UltraHub locations:
 
 - Gladstone
 - Calliope
