@@ -54,7 +54,7 @@ def chat(session_id: str, message: str):
     if GREETING_PATTERN.match(message.strip()):
 
         reply = (
-            "Hi there! I'm the GP Ultra Hub assistant. I can help you find "
+            "Hi there! I'm the GP UltraHub assistant. I can help you find "
             "the right doctor and get you to their booking page — just let "
             "me know what you'd like to be seen for, or which doctor you'd "
             "like to book."
@@ -99,7 +99,7 @@ def chat(session_id: str, message: str):
     if search_state.get("intent") == "general":
 
         reply = (
-            "I'm the GP Ultra Hub receptionist — I can help you find the "
+            "I'm the GP UltraHub receptionist — I can help you find the "
             "right doctor or provider and get you to their booking page. "
             "Could you tell me what you'd like to be seen for, or which "
             "doctor you'd like to book?"
@@ -130,7 +130,7 @@ def chat(session_id: str, message: str):
             return reply
 
         clinic_info_prompt = f"""
-You are the AI Receptionist for GP Ultra Hub, answering a question
+You are the AI Receptionist for GP UltraHub, answering a question
 about clinic services or locations.
 
 Answer ONLY using the facts in the data below. Never invent services,
@@ -175,7 +175,7 @@ Clinic Services and Locations Data:
     ):
 
         reply = (
-            "Sure! Which GP Ultra Hub location would you prefer?\n\n"
+            "Sure! Which GP UltraHub location would you prefer?\n\n"
             "• Gladstone\n"
             "• Calliope\n"
             "• Burnett Heads\n"
@@ -204,7 +204,7 @@ Clinic Services and Locations Data:
         doctor = result["data"][0]
 
         reply = (
-            f"{doctor['doctor']} is available at GP Ultra Hub "
+            f"{doctor['doctor']} is available at GP UltraHub "
             f"{doctor['clinic']}.\n\n"
             f"Next available: {doctor['availability']}\n\n"
             f"Book here:\n{doctor['booking_url']}\n\n"
@@ -225,7 +225,7 @@ Clinic Services and Locations Data:
         doctor = result["data"]
 
         reply = (
-            f"{doctor['doctor']} is available at GP Ultra Hub "
+            f"{doctor['doctor']} is available at GP UltraHub "
             f"{doctor['clinic']}.\n\n"
             f"Next available: {doctor['availability']}\n\n"
             f"Book here:\n{doctor['booking_url']}\n\n"
@@ -260,7 +260,7 @@ Clinic Services and Locations Data:
 
         for doctor in doctors:
             lines.append(
-                f"**{doctor['doctor']}** — GP Ultra Hub {doctor['clinic']}\n"
+                f"**{doctor['doctor']}** — GP UltraHub {doctor['clinic']}\n"
                 f"Next available: {doctor['availability']}\n"
                 f"Book here: {doctor['booking_url']}"
             )
@@ -287,7 +287,7 @@ Clinic Services and Locations Data:
 
         reply = (
             f"I'm sorry, I couldn't find a doctor named "
-            f"\"{requested_name}\" at GP Ultra Hub. Could you double-check "
+            f"\"{requested_name}\" at GP UltraHub. Could you double-check "
             "the spelling, or let me know what you'd like to be seen for "
             "and I can recommend the right doctor?"
         )
@@ -305,7 +305,7 @@ Clinic Services and Locations Data:
         reply = (
             "I couldn't find a matching doctor for that. Could you double-check "
             "the name, or tell me what you'd like to be seen for so I can "
-            "recommend the right GP Ultra Hub doctor?"
+            "recommend the right GP UltraHub doctor?"
         )
 
         add_message(
@@ -322,9 +322,9 @@ Clinic Services and Locations Data:
 
     # Step 6: Build receptionist prompt
     prompt = f"""
-You are the AI Receptionist for GP Ultra Hub.
+You are the AI Receptionist for GP UltraHub.
 
-Your primary goal is to help patients choose the right GP Ultra Hub doctor and direct them to a booking page as quickly as possible.
+Your primary goal is to help patients choose the right GP UltraHub doctor and direct them to a booking page as quickly as possible.
 
 You are a receptionist, not a doctor.
 
@@ -422,7 +422,7 @@ Example wording:
 SKIN CANCER
 --------------------------------------------------
 
-GP Ultra Hub GPs assess and manage:
+GP UltraHub GPs assess and manage:
 
 - skin cancer
 - suspicious moles
@@ -471,7 +471,7 @@ If enough information has already been provided to identify the correct doctor, 
 
 Your job is to:
 
-1. Identify the correct GP Ultra Hub doctor(s).
+1. Identify the correct GP UltraHub doctor(s).
 2. Mention the next available appointment if supplied by the clinic results.
 3. Provide the booking link.
 4. Tell the patient to open the booking page to view all available appointment times and complete their booking.
