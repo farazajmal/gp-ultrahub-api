@@ -81,7 +81,26 @@ def chat(session_id: str, message: str):
     print("\nSEARCH STATE:")
     print(json.dumps(search_state, indent=2, default=str))
     
-    # Step 2: If the request is unrelated to finding a doctor,
+    # Step 2: If user was asked about checking other locations, handle their response first
+    if search_state.get("asked_other_locations"):
+        is_affirmative = bool(
+            re.search(r"^(yes|yeah|sure|ok|okay|please|yep|yup|definitely|of course|go ahead|check other|other|any)", message.strip(), re.I)
+            or intent.get("any_clinic")
+        )
+        is_negative = bool(re.search(r"^(no|nope|nah|not now|no thanks|never mind)", message.strip(), re.I))
+
+        if is_negative:
+            search_state["asked_other_locations"] = False
+            reply = "No problem! Please let me know if you'd like to check for different days, or if there is anything else I can help you with."
+            add_message(session_id, "assistant", reply)
+            return reply
+
+        if is_affirmative:
+            search_state["clinic"] = None
+            search_state["any_clinic"] = True
+            search_state["asked_other_locations"] = False
+
+    # Step 2.5: If the request is unrelated to finding a doctor,
     # don't try to search — just redirect politely.
     if search_state.get("intent") == "general":
 
@@ -240,6 +259,39 @@ Clinic Services and Locations Data:
     # Step 4: Execute the search
     result = execute_intent(search_state)
 
+    # Check if this search produced no matches at a specific clinic
+    has_no_match = (
+        result is None
+        or (result.get("type") == "search" and not result.get("data"))
+        or (result.get("type") == "recommend" and not result.get("data"))
+        or (result.get("type") == "availability_search" and not result.get("data"))
+    )
+
+    if has_no_match and search_state.get("clinic") and not search_state.get("any_clinic"):
+        # Probe other clinics
+        alt_state = dict(search_state)
+        alt_state["clinic"] = None
+        alt_state["any_clinic"] = True
+        alt_result = execute_intent(alt_state)
+
+        has_other_matches = bool(alt_result and alt_result.get("data"))
+
+        search_state["asked_other_locations"] = True
+
+        if has_other_matches:
+            reply = (
+                f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}.\n\n"
+                f"Would you like me to suggest available doctors from our other locations (Gladstone, Calliope, Burnett Heads, or Toowoomba Plaza)?"
+            )
+        else:
+            reply = (
+                f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}. "
+                f"Would you like me to check another location, or let me know a bit more about what you need?"
+            )
+
+        add_message(session_id, "assistant", reply)
+        return reply
+
     # Single search result
     if (
         result
@@ -282,8 +334,9 @@ Clinic Services and Locations Data:
                 f"Book here: {d['booking_url']}"
             )
 
+        intro = "Here are the available options across our locations:" if search_state.get("any_clinic") else "Here are a few suitable options:"
         reply = (
-            "Here are a few suitable options:\n\n" + "\n\n".join(lines) +
+            f"{intro}\n\n" + "\n\n".join(lines) +
             "\n\nYou can open any of these booking pages to view all "
             "available appointment times and choose what suits you best."
         )
@@ -291,7 +344,7 @@ Clinic Services and Locations Data:
         add_message(session_id, "assistant", reply)
         return reply
 
-    # Search with no matches at all
+    # Search with no matches at all (across all clinics or general)
     if (
         result
         and result["type"] == "search"
@@ -299,8 +352,8 @@ Clinic Services and Locations Data:
     ):
 
         reply = (
-            "I couldn't find a matching doctor for that at this clinic. "
-            "Would you like me to check another location, or tell me a "
+            "I couldn't find any matching doctors for that. "
+            "Would you like to try a different day or service, or tell me a "
             "bit more about what you need?"
         )
 
@@ -399,12 +452,18 @@ Clinic Services and Locations Data:
 
         requested_name = search_state.get("doctor")
 
-        reply = (
-            f"I'm sorry, I couldn't find a doctor named "
-            f"\"{requested_name}\" at GP UltraHub. Could you double-check "
-            "the spelling, or let me know what you'd like to be seen for "
-            "and I can recommend the right doctor?"
-        )
+        if requested_name:
+            reply = (
+                f"I'm sorry, I couldn't find a doctor named "
+                f"\"{requested_name}\" at GP UltraHub. Could you double-check "
+                "the spelling, or let me know what you'd like to be seen for "
+                "and I can recommend the right doctor?"
+            )
+        else:
+            reply = (
+                "I couldn't find a matching doctor for that. Could you tell me "
+                "a bit more about what you need or if another location would work?"
+            )
 
         add_message(session_id, "assistant", reply)
         return reply
