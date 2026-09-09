@@ -419,6 +419,28 @@ Never return "intent":"general" just because the word "book" or
 "schedule" appears in the message — always check first whether a
 doctor's name, provider type, or medical concern is present.
 --------------------------------------------------
+Symptoms, Health Concerns, and Illnesses
+--------------------------------------------------
+
+If the user describes a health problem, illness, pain, symptom, condition, or reason for a visit (e.g., "I have a sore throat", "mole check", "diabetes management", "chest pain", "joint pain", "fever", "skin rash"):
+
+Return:
+"intent": "recommend"
+"interest": <the specific symptom, condition, or health concern>
+"provider_type": <GP, Physiotherapist, Dentist, or Nurse according to Medical Reasoning>
+
+--------------------------------------------------
+Unsure / General / Routine Check-ups
+--------------------------------------------------
+
+If the user is unsure, doesn't know, says "not sure", "just feeling unwell", "general checkup", "routine visit", "any doctor", "standard appointment", or has no specific condition:
+
+Return:
+"intent": "recommend"
+"provider_type": "GP"
+"interest": null
+
+--------------------------------------------------
 Clinic Preference
 --------------------------------------------------
 
