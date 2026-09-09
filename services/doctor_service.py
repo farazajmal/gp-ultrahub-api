@@ -179,87 +179,58 @@ def score_doctor(doctor, intent, medical_scores):
 
     score = 0
 
-    # If the request has no filters at all (no provider type, interest,
-    # clinic, or gender), this is a "list everyone" request rather than
-    # a targeted search. Give every doctor a baseline score so nothing
-    # gets excluded just for lacking matching criteria.
-    if (
-        not intent.get("provider_type")
-        and not intent.get("interest")
-        and not intent.get("clinic")
-        and not intent.get("gender")
-    ):
-        return 1
-
     # ----------------------------
-    # Provider Type
+    # Clinic filter
     # ----------------------------
-
-    provider_type = intent.get("provider_type")
-
-    if provider_type:
-
-        role = (doctor.get("role") or "").lower()
-        provider = (doctor.get("provider_type") or "").lower()
-
-        if provider_type.lower() in role:
-            score += 60
-
-        elif provider_type.lower() in provider:
-            score += 60
-
-    # ----------------------------
-    # Interests
-    # ----------------------------
-
-    interest = intent.get("interest")
-
-    if interest:
-
-        # Skin cancer stays as a business rule
-        if interest.lower() == "skin cancer":
-
-            if (doctor.get("provider_type") or "") == "GP":
-                score += 40
-
-        else:
-
-            score += medical_scores.get(
-                doctor["doctor"],
-                0
-            )
-
-    # ----------------------------
-    # Clinic
-    # ----------------------------
-
     clinic = intent.get("clinic")
-
     if clinic and not intent.get("any_clinic"):
-
         doctor_clinic = (doctor.get("clinic") or "").lower()
-
         if doctor_clinic != clinic.lower():
             return 0
-        else:
-            score += 20
+        score += 20
     elif clinic and intent.get("any_clinic"):
         doctor_clinic = (doctor.get("clinic") or "").lower()
         if doctor_clinic == clinic.lower():
             score += 20
 
     # ----------------------------
-    # Gender
+    # Provider Type filter
     # ----------------------------
+    provider_type = intent.get("provider_type")
+    if provider_type:
+        role = (doctor.get("role") or "").lower()
+        provider = (doctor.get("provider_type") or "").lower()
+        if provider_type.lower() in role or provider_type.lower() in provider:
+            score += 60
+        else:
+            return 0
 
+    # ----------------------------
+    # Gender filter
+    # ----------------------------
     gender = intent.get("gender")
-
     if gender:
-
         doctor_gender = (doctor.get("gender") or "").lower()
-
         if doctor_gender == gender.lower():
             score += 10
+        else:
+            return 0
+
+    # ----------------------------
+    # Interests
+    # ----------------------------
+    interest = intent.get("interest")
+    if interest:
+        if interest.lower() == "skin cancer":
+            if (doctor.get("provider_type") or "") == "GP":
+                score += 40
+        else:
+            med_score = medical_scores.get(doctor["doctor"], 0)
+            score += med_score
+
+    # Baseline for general searches with no specific criteria
+    if not provider_type and not interest and not gender:
+        score += 1
 
     return score
 
