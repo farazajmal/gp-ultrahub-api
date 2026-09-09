@@ -68,20 +68,7 @@ def chat(session_id: str, message: str):
 
         return reply
 
-    # Step 1: Decide whether we need more information
-    follow_up = needs_follow_up(history)
-
-    if follow_up["needs_follow_up"]:
-
-        add_message(
-            session_id,
-            "assistant",
-            follow_up["question"]
-        )
-
-        return follow_up["question"]
-
-    # Step 2: Extract intent
+    # Step 1: Extract intent & update search state
     intent = extract_intent(history)
     print("\n========== INTENT ==========")
     print(json.dumps(intent, indent=2))
@@ -94,7 +81,7 @@ def chat(session_id: str, message: str):
     print("\nSEARCH STATE:")
     print(json.dumps(search_state, indent=2, default=str))
     
-    # Step 2.5: If the request is unrelated to finding a doctor,
+    # Step 2: If the request is unrelated to finding a doctor,
     # don't try to search — just redirect politely.
     if search_state.get("intent") == "general":
 
@@ -186,17 +173,15 @@ Clinic Services and Locations Data:
         add_message(session_id, "assistant", reply)
         return reply
 
-    # Step 3: If we don't know the clinic yet, ask first
-    clinic = (search_state.get("clinic") or "").lower()
-    
-    # Step 3: If we don't know the clinic yet, ask first
-    clinic = (search_state.get("clinic") or "").lower()
+    # Step 3: Location Check
+    clinic = (search_state.get("clinic") or "").strip().lower()
+    has_clinic = bool(clinic) or search_state.get("any_clinic", False)
+    has_doctor = bool(search_state.get("doctor"))
 
     if (
         search_state.get("intent") in ["search", "recommend", "availability_search"]
-        and clinic == ""
-        and not search_state.get("any_clinic")
-        and not search_state.get("doctor")
+        and not has_clinic
+        and not has_doctor
     ):
 
         reply = (
@@ -215,6 +200,42 @@ Clinic Services and Locations Data:
         )
 
         return reply
+
+    # Step 3.5: Reason / Illness / Problem Check
+    # If location is known, but the patient hasn't specified what they need to be seen for:
+    has_interest = bool(search_state.get("interest"))
+    has_specific_provider = bool(search_state.get("provider_type") and search_state.get("provider_type") != "GP")
+    has_preferred_time = bool(search_state.get("preferred_time"))
+    already_asked_reason = search_state.get("reason_prompted", False)
+
+    if (
+        has_clinic
+        and not has_doctor
+        and not has_interest
+        and not has_specific_provider
+        and not has_preferred_time
+        and not already_asked_reason
+    ):
+        search_state["reason_prompted"] = True
+
+        reply = (
+            "Could you tell me what you'd like to be seen for, or what symptoms or illness you're experiencing?\n\n"
+            "(If you're not sure, just let me know and I can recommend a General Practitioner for a standard consultation.)"
+        )
+
+        add_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return reply
+
+    # If the user was already asked for their reason, but didn't provide a specific condition
+    # (e.g., they said "unsure", "not sure", "don't know", "general checkup"), default to GP
+    if already_asked_reason and not has_interest and not has_doctor:
+        search_state["provider_type"] = search_state.get("provider_type") or "GP"
+        search_state["reason_prompted"] = False
 
     # Step 4: Execute the search
     result = execute_intent(search_state)
@@ -297,14 +318,33 @@ Clinic Services and Locations Data:
 
         update_search_state(session_id, {"last_recommended_doctor": doctor})
 
+        interest = search_state.get("interest")
+        role = doctor.get("role") or doctor.get("provider_type") or "GP"
 
-        reply = (
-            f"{doctor['doctor']} is available at GP UltraHub "
-            f"{doctor['clinic']}.\n\n"
-            f"Next available: {doctor['availability']}\n\n"
-            f"Book here:\n{doctor['booking_url']}\n\n"
-            "Open the booking page to view all available appointment times."
-        )
+        if interest:
+            reply = (
+                f"**{doctor['doctor']}** is a great match for {interest} at GP UltraHub "
+                f"{doctor['clinic']}.\n\n"
+                f"Next available: {doctor['availability']}\n\n"
+                f"Book here:\n{doctor['booking_url']}\n\n"
+                "Open the booking page to view all available appointment times."
+            )
+        elif search_state.get("provider_type") == "GP" or not search_state.get("doctor"):
+            reply = (
+                f"For your consultation, **{doctor['doctor']}** ({role}) is available at GP UltraHub "
+                f"{doctor['clinic']}.\n\n"
+                f"Next available: {doctor['availability']}\n\n"
+                f"Book here:\n{doctor['booking_url']}\n\n"
+                "Open the booking page to view all available appointment times."
+            )
+        else:
+            reply = (
+                f"**{doctor['doctor']}** is available at GP UltraHub "
+                f"{doctor['clinic']}.\n\n"
+                f"Next available: {doctor['availability']}\n\n"
+                f"Book here:\n{doctor['booking_url']}\n\n"
+                "Open the booking page to view all available appointment times."
+            )
 
         add_message(session_id, "assistant", reply)
         return reply
