@@ -204,12 +204,12 @@ Clinic Services and Locations Data:
     ):
 
         reply = (
-            "Sure! Which GP UltraHub location would you prefer?\n\n"
-            "• Gladstone\n"
-            "• Calliope\n"
-            "• Burnett Heads\n"
-            "• Toowoomba Plaza\n\n"
-            "If you don't mind which location, just let me know and I'll recommend the earliest suitable doctor across all clinics."
+            "Which GP UltraHub location would you prefer?\n\n"
+            "[choice: Gladstone]\n"
+            "[choice: Calliope]\n"
+            "[choice: Burnett Heads]\n"
+            "[choice: Toowoomba Plaza]\n"
+            "[choice: Any Location would be fine]"
         )
 
         add_message(
@@ -281,12 +281,18 @@ Clinic Services and Locations Data:
         if has_other_matches:
             reply = (
                 f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}.\n\n"
-                f"Would you like me to suggest available doctors from our other locations (Gladstone, Calliope, Burnett Heads, or Toowoomba Plaza)?"
+                f"Would you like me to suggest available doctors from our other locations?\n\n"
+                "[choice: Yes, check other locations]\n"
+                "[choice: No, thank you]"
             )
         else:
             reply = (
-                f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}. "
-                f"Would you like me to check another location, or let me know a bit more about what you need?"
+                f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}.\n\n"
+                f"Would you like me to check another location?\n\n"
+                "[choice: Gladstone]\n"
+                "[choice: Calliope]\n"
+                "[choice: Burnett Heads]\n"
+                "[choice: Toowoomba Plaza]"
             )
 
         add_message(session_id, "assistant", reply)
