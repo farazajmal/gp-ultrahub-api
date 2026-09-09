@@ -241,12 +241,8 @@ def score_doctor(doctor, intent, medical_scores):
     # ----------------------------
     interest = intent.get("interest")
     if interest:
-        if interest.lower() == "skin cancer":
-            if (doctor.get("provider_type") or "") == "GP":
-                score += 40
-        else:
-            med_score = medical_scores.get(doctor["doctor"], 0)
-            score += med_score
+        med_score = medical_scores.get(doctor["doctor"], 0)
+        score += med_score
 
     # Baseline for general searches with no specific criteria
     if not provider_type and not interest and not gender:
