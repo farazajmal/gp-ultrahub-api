@@ -235,10 +235,16 @@ def score_doctor(doctor, intent, medical_scores):
 
     clinic = intent.get("clinic")
 
-    if clinic:
+    if clinic and not intent.get("any_clinic"):
 
         doctor_clinic = (doctor.get("clinic") or "").lower()
 
+        if doctor_clinic != clinic.lower():
+            return 0
+        else:
+            score += 20
+    elif clinic and intent.get("any_clinic"):
+        doctor_clinic = (doctor.get("clinic") or "").lower()
         if doctor_clinic == clinic.lower():
             score += 20
 
