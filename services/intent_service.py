@@ -419,21 +419,21 @@ Never return "intent":"general" just because the word "book" or
 "schedule" appears in the message — always check first whether a
 doctor's name, provider type, or medical concern is present.
 --------------------------------------------------
-Symptoms, Health Concerns, and Illnesses
+Symptoms, Health Concerns, and Check-ups
 --------------------------------------------------
 
-If the user describes a health problem, illness, pain, symptom, condition, or reason for a visit (e.g., "I have a sore throat", "mole check", "diabetes management", "chest pain", "joint pain", "fever", "skin rash"):
+If the user describes a health problem, illness, pain, symptom, condition, or a specific reason for a visit (e.g., "I have a sore throat", "mole check", "diabetes management", "chest pain", "joint pain", "fever", "skin rash", "general health check-up", "routine check-up", "annual checkup", "health assessment", "standard checkup"):
 
 Return:
 "intent": "recommend"
-"interest": <the specific symptom, condition, or health concern>
+"interest": <the specific symptom, condition, or health concern, e.g. "General health check-up", "Mole check", "Joint pain">
 "provider_type": <GP, Physiotherapist, Dentist, or Nurse according to Medical Reasoning>
 
 --------------------------------------------------
-Unsure / General / Routine Check-ups
+Generic / Unspecified Appointment Requests
 --------------------------------------------------
 
-If the user is unsure, doesn't know, says "not sure", "just feeling unwell", "general checkup", "routine visit", "any doctor", "standard appointment", or has no specific condition:
+If the user ONLY gives a generic request with NO reason or symptom yet (e.g. "I need to see a doctor", "I need an appointment", "Can I see someone"), OR if the user explicitly says they are unsure/don't know (e.g. "not sure", "don't know", "just feeling unwell", "any GP"):
 
 Return:
 "intent": "recommend"
