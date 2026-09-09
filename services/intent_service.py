@@ -441,11 +441,13 @@ Return:
 "interest": null
 
 --------------------------------------------------
-Clinic Preference
+Clinic Preference & Other Locations
 --------------------------------------------------
 
 If the user says any of the following:
 
+- Yes / Sure / Yes please / Okay / Please check (in response to being asked about checking other locations)
+- Other locations / other clinics / check other clinics / suggest other locations
 - Any clinic
 - I don't mind
 - Whichever is earliest
@@ -461,8 +463,7 @@ If the user says any of the following:
 Return:
 
 "any_clinic": true
-
-Leave clinic as null.
+"clinic": null
 
 Otherwise:
 
