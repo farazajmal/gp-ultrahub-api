@@ -222,10 +222,21 @@ Clinic Services and Locations Data:
 
     # Step 3.5: Reason / Illness / Problem Check
     # If location is known, but the patient hasn't specified what they need to be seen for:
+    is_availability_search = search_state.get("intent") == "availability_search"
     has_interest = bool(search_state.get("interest"))
     has_specific_provider = bool(search_state.get("provider_type") and search_state.get("provider_type") != "GP")
     has_preferred_time = bool(search_state.get("preferred_time"))
     already_asked_reason = search_state.get("reason_prompted", False)
+
+    # Detect if user mentioned a check-up or routine visit in conversation
+    if not has_interest:
+        for m in history:
+            if m.get("role") == "user":
+                c = m.get("content", "")
+                if re.search(r'\b(check[-\s]?up|health check|routine check|general check|annual check|medical assessment)\b', c, re.I):
+                    has_interest = True
+                    search_state["interest"] = "General health check-up"
+                    break
 
     if (
         has_clinic
@@ -233,6 +244,7 @@ Clinic Services and Locations Data:
         and not has_interest
         and not has_specific_provider
         and not has_preferred_time
+        and not is_availability_search
         and not already_asked_reason
     ):
         search_state["reason_prompted"] = True
