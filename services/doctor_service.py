@@ -15,6 +15,26 @@ def _normalize_name(name):
     return name.strip()
 
 
+CLINIC_ALIASES = {
+    "toowoomba plaza": "toowoomba",
+    "toowoomba": "toowoomba",
+    "gladstone": "gladstone",
+    "calliope": "calliope",
+    "burnett heads": "burnett heads",
+    "burnett": "burnett heads",
+}
+
+
+def _normalize_clinic(name):
+    if not name:
+        return ""
+    norm = name.strip().lower()
+    for alias, canonical in CLINIC_ALIASES.items():
+        if alias in norm or norm in alias:
+            return canonical
+    return norm
+
+
 def _doctor_name_matches(query, doctor_name, cutoff=0.7):
     query_norm = _normalize_name(query)
     name_norm = _normalize_name(doctor_name)
@@ -109,9 +129,9 @@ def search_doctors(
 
             if clinic:
 
-                doctor_clinic = (item.get("clinic") or "").lower()
+                doctor_clinic = item.get("clinic") or ""
 
-                if doctor_clinic != clinic.lower():
+                if _normalize_clinic(doctor_clinic) != _normalize_clinic(clinic):
                     continue
 
             if day:
@@ -184,13 +204,13 @@ def score_doctor(doctor, intent, medical_scores):
     # ----------------------------
     clinic = intent.get("clinic")
     if clinic and not intent.get("any_clinic"):
-        doctor_clinic = (doctor.get("clinic") or "").lower()
-        if doctor_clinic != clinic.lower():
+        doctor_clinic = doctor.get("clinic") or ""
+        if _normalize_clinic(doctor_clinic) != _normalize_clinic(clinic):
             return 0
         score += 20
     elif clinic and intent.get("any_clinic"):
-        doctor_clinic = (doctor.get("clinic") or "").lower()
-        if doctor_clinic == clinic.lower():
+        doctor_clinic = doctor.get("clinic") or ""
+        if _normalize_clinic(doctor_clinic) == _normalize_clinic(clinic):
             score += 20
 
     # ----------------------------
@@ -342,9 +362,9 @@ def availability_search(intent):
 
         if clinic and not any_clinic:
 
-            doctor_clinic = (doctor.get("clinic") or "").lower()
+            doctor_clinic = doctor.get("clinic") or ""
 
-            if doctor_clinic != clinic.lower():
+            if _normalize_clinic(doctor_clinic) != _normalize_clinic(clinic):
                 continue
 
         # ----------------------------
