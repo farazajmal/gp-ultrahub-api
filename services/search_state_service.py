@@ -43,6 +43,13 @@ def update_search_state(session_id, intent):
         if value is not None:
             state[key] = value
 
+    # If any_clinic is requested, clear any previously locked specific clinic
+    if intent.get("any_clinic"):
+        state["clinic"] = None
+        state["any_clinic"] = True
+    elif intent.get("clinic"):
+        state["any_clinic"] = False
+
     state["_updated"] = datetime.now()
 
     return state
