@@ -444,21 +444,13 @@ Return:
 Clinic Preference & Other Locations
 --------------------------------------------------
 
-If the user says any of the following:
+If the user EXPLICITLY asks to search across all clinics, or says location does not matter:
 
-- Yes / Sure / Yes please / Okay / Please check (in response to being asked about checking other locations)
-- Other locations / other clinics / check other clinics / suggest other locations
-- Any clinic
-- I don't mind
-- Whichever is earliest
-- Closest available
-- First available
-- Earliest appointment
-- Anywhere
-- All doctors / a list of all doctors / every doctor
-- All clinics / across all clinics / combined
-- Everyone available
-- The full list of doctors
+- Any clinic / any location / anywhere / any location would be fine
+- I don't mind the location / no clinic preference
+- Across all clinics / all locations / combined
+- Check other clinics / other locations / suggest other locations
+- Yes / Sure / Yes please / Okay / Please check (when asked about checking other locations)
 
 Return:
 
@@ -468,8 +460,10 @@ Return:
 Otherwise:
 
 "any_clinic": false
-U
-ser:
+
+IMPORTANT: If the user simply asks for "earliest available" or "earliest appointment" without explicitly asking for all locations, return "any_clinic": false so their chosen location is preserved.
+
+User:
 Any clinic is fine
 
 {
@@ -487,7 +481,7 @@ User:
 Whichever clinic has the earliest appointment
 
 {
-  "intent":"recommend",
+  "intent":"availability_search",
   "doctor":null,
   "clinic":null,
   "any_clinic":true,
