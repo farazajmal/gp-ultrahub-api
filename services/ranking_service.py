@@ -52,10 +52,20 @@ Rules:
 """
 
 
+_MATCH_CACHE = {}
+
+
 def score_medical_match(interest, doctors):
 
     if not interest:
         return {}
+
+    interest_key = interest.strip().lower()
+    doctors_key = tuple(sorted(d["doctor"] for d in doctors))
+    cache_key = (interest_key, doctors_key)
+
+    if cache_key in _MATCH_CACHE:
+        return _MATCH_CACHE[cache_key]
 
     doctor_profiles = []
 
@@ -80,9 +90,9 @@ Doctors:
 Return ONLY JSON.
 """
 
-    response = client.responses.create(
-        model="gpt-5.4-mini",
-        input=[
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
             {
                 "role": "system",
                 "content": SYSTEM_PROMPT
@@ -91,7 +101,10 @@ Return ONLY JSON.
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+        response_format={"type": "json_object"}
     )
 
-    return json.loads(response.output_text)
+    result = json.loads(response.choices[0].message.content)
+    _MATCH_CACHE[cache_key] = result
+    return result
