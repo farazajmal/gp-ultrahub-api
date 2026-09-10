@@ -563,23 +563,170 @@ Toowoomba Plaza
 }
 
 If a clinic name appears together with another request, extract the clinic and the other fields normally.
-
 """
+
+import re
+
+
+def fast_path_intent(last_message):
+    if not last_message:
+        return None
+
+    text = last_message.strip()
+
+    # 1. Direct Clinic Selections
+    clinic_map = {
+        r"^(toowoomba plaza|toowoomba)$": "Toowoomba Plaza",
+        r"^(burnett heads|burnett)$": "Burnett Heads",
+        r"^(gladstone)$": "Gladstone",
+        r"^(calliope)$": "Calliope",
+    }
+    for pat, clinic in clinic_map.items():
+        if re.match(pat, text, re.I):
+            return {
+                "intent": "search",
+                "doctor": None,
+                "clinic": clinic,
+                "any_clinic": False,
+                "provider_type": None,
+                "gender": None,
+                "day": None,
+                "preferred_time": None,
+                "interest": None,
+            }
+
+    if re.search(r"^(any location|any location would be fine|all clinics|any clinic|all locations)$", text, re.I):
+        return {
+            "intent": "search",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": True,
+            "provider_type": None,
+            "gender": None,
+            "day": None,
+            "preferred_time": None,
+            "interest": None,
+        }
+
+    # 2. Starter Prompts & Common Medical Reasons
+    if re.search(r"^(i need to see a doctor|see a doctor|need a doctor|book a doctor|i want to see a doctor)$", text, re.I):
+        return {
+            "intent": "recommend",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": "GP",
+            "gender": None,
+            "day": None,
+            "preferred_time": None,
+            "interest": None,
+        }
+
+    if re.search(r"^(i need a skin or mole check|skin / mole check|skin or mole check|skin check|mole check|skin cancer check|skin cancer)$", text, re.I):
+        return {
+            "intent": "recommend",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": "GP",
+            "gender": None,
+            "day": None,
+            "preferred_time": None,
+            "interest": "Skin cancer",
+        }
+
+    if re.search(r"^(i have joint or back pain|joint / back pain|joint or back pain|joint pain|back pain)$", text, re.I):
+        return {
+            "intent": "recommend",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": "GP",
+            "gender": None,
+            "day": None,
+            "preferred_time": None,
+            "interest": "Joint & Back pain",
+        }
+
+    if re.search(r"^(i need diabetes management|diabetes care|diabetes management|diabetes)$", text, re.I):
+        return {
+            "intent": "recommend",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": "GP",
+            "gender": None,
+            "day": None,
+            "preferred_time": None,
+            "interest": "Diabetes management",
+        }
+
+    if re.search(r"^(i want a general health check-up|general check-up|general checkup|general health checkup|general health check-up|general check|routine checkup)$", text, re.I):
+        return {
+            "intent": "recommend",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": "GP",
+            "gender": None,
+            "day": None,
+            "preferred_time": None,
+            "interest": "General health check-up",
+        }
+
+    if re.search(r"^(earliest available appointment|earliest available|who is the earliest available\??|who'?s the earliest available\??|earliest appointment)$", text, re.I):
+        return {
+            "intent": "availability_search",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": "GP",
+            "gender": None,
+            "day": None,
+            "preferred_time": "earliest available",
+            "interest": None,
+        }
+
+    if re.search(r"^(who is the specialist\??|who'?s the specialist\??|who is the best doctor\??|who specializes in this\??|who treats this\??|specialist|specialists)$", text, re.I):
+        return {
+            "intent": "search",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": None,
+            "gender": None,
+            "day": None,
+            "preferred_time": None,
+            "interest": None,
+        }
+
+    return None
 
 
 def extract_intent(history):
 
+    last_user_msg = ""
+    for m in reversed(history):
+        if m.get("role") == "user":
+            last_user_msg = m.get("content", "")
+            break
+
+    fast = fast_path_intent(last_user_msg)
+    if fast is not None:
+        return fast
+
     conversation = build_conversation(history)
 
-    response = client.responses.create(
-        model="gpt-5.4-mini",
-        input=[
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
             {
                 "role": "system",
                 "content": SYSTEM_PROMPT,
             },
             *conversation,
         ],
+        response_format={"type": "json_object"}
     )
 
-    return json.loads(response.output_text)
+    return json.loads(response.choices[0].message.content)
