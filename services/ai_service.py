@@ -157,12 +157,12 @@ Clinic Services and Locations Data:
 {json.dumps(services_data, indent=2)}
 """
 
-        response = client.responses.create(
-            model="gpt-5.4-mini",
-            input=clinic_info_prompt,
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": clinic_info_prompt}],
         )
 
-        reply = response.output_text
+        reply = response.choices[0].message.content
 
         add_message(session_id, "assistant", reply)
         return reply
@@ -674,12 +674,12 @@ Do not ask questions that the booking page will ask.
 Your job ends once you have identified the correct doctor and provided the booking link.
 """
 
-    response = client.responses.create(
-        model="gpt-5.4-mini",
-        input=prompt,
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
     )
 
-    reply = response.output_text
+    reply = response.choices[0].message.content
 
     add_message(
         session_id,
