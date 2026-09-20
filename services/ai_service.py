@@ -192,6 +192,12 @@ Clinic Services and Locations Data:
 
     # Step 3.5: Reason / Illness / Problem Check
     is_availability_search = search_state.get("intent") == "availability_search"
+    # Step 3.5: Reason / Illness / Problem Check
+    is_availability_search = (
+        search_state.get("intent") == "availability_search"
+        or bool(search_state.get("day"))
+        or bool(search_state.get("preferred_time"))
+    )
     has_interest = bool(search_state.get("interest"))
     has_specific_provider = bool(search_state.get("provider_type") and search_state.get("provider_type") != "GP")
     has_preferred_time = bool(search_state.get("preferred_time"))
@@ -255,24 +261,33 @@ Clinic Services and Locations Data:
         alt_state["any_clinic"] = True
         alt_result = execute_intent(alt_state)
         has_other_matches = bool(alt_result and alt_result.get("data"))
-        search_state["asked_other_locations"] = True
-        search_state["asked_location_prompted"] = True
-
         if has_other_matches:
+            search_state["asked_other_locations"] = True
+            search_state["asked_location_prompted"] = True
             reply = (
                 f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}.\n\n"
                 f"Would you like me to suggest available doctors from our other locations?\n\n"
                 "[choice: Yes, check other locations]\n"
                 "[choice: No, thank you]"
             )
+        elif search_state.get("day"):
+            req_day = search_state.get("day")
+            search_state["asked_other_locations"] = False
+            search_state["asked_location_prompted"] = False
+            reply = (
+                f"I couldn't find any available doctors at GP UltraHub on {req_day}.\n\n"
+                "Our clinics operate Monday through Friday. Would you like to check availability for Monday or Friday, or try another day?\n\n"
+                "[choice: Check Monday availability]\n"
+                "[choice: Check Friday availability]"
+            )
         else:
+            search_state["asked_other_locations"] = False
+            search_state["asked_location_prompted"] = False
             reply = (
                 f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}.\n\n"
-                f"Would you like me to check another location?\n\n"
-                "[choice: Gladstone]\n"
-                "[choice: Calliope]\n"
-                "[choice: Burnett Heads]\n"
-                "[choice: Toowoomba Plaza]"
+                "Would you like to try checking for a different day, or tell me a bit more about what you need?\n\n"
+                "[choice: Check Monday availability]\n"
+                "[choice: Check Friday availability]"
             )
 
         add_message(session_id, "assistant", reply)
