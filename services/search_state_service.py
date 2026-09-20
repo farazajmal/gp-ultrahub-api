@@ -38,10 +38,15 @@ def update_search_state(session_id, intent):
         search_states[session_id] = {}
 
     state = search_states[session_id]
+    was_availability = state.get("intent") == "availability_search"
 
     for key, value in intent.items():
         if value is not None:
             state[key] = value
+
+    # If day, preferred_time, or prior availability_search is active in state, keep intent as availability_search unless specific interest/doctor override is given
+    if (state.get("day") or state.get("preferred_time") or was_availability) and not intent.get("interest") and not intent.get("doctor"):
+        state["intent"] = "availability_search"
 
     # Bind last_recommended_doctor if user asks a day availability question right after a doctor recommendation ("is she available on Friday?")
     if intent.get("intent") in ["availability_search", "search"]:
