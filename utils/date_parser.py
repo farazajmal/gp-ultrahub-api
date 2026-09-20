@@ -107,6 +107,24 @@ def parse_time_to_minutes(time_str: str):
     return None
 
 
+DAY_TYPOS = {
+    "thrusday": "thursday", "thursady": "thursday", "thurday": "thursday", "thurs": "thursday", "thu": "thursday",
+    "fridye": "friday", "fridy": "friday", "fri": "friday",
+    "mondy": "monday", "mon": "monday",
+    "tuesady": "tuesday", "tues": "tuesday", "tue": "tuesday",
+    "wednsday": "wednesday", "wedsday": "wednesday", "weds": "wednesday", "wed": "wednesday",
+    "satday": "saturday", "sat": "saturday",
+    "sunday": "sunday", "sun": "sunday"
+}
+
+def normalize_day(day_str):
+    if not day_str:
+        return None
+    d = day_str.strip().lower()
+    canon = DAY_TYPOS.get(d, d)
+    return canon.capitalize()
+
+
 def match_patch_to_query(patch, day_query=None, time_query=None):
     """
     Checks if an availability patch matches day_query (e.g. 'Monday', 'today')
@@ -121,7 +139,7 @@ def match_patch_to_query(patch, day_query=None, time_query=None):
 
     # 1. Day Match
     if day_query:
-        day_q = day_query.strip().lower()
+        day_q = normalize_day(day_query).lower()
         if day_q == "today":
             today_str = now.strftime("%Y-%m-%d")
             if patch_date_str != today_str:
@@ -130,7 +148,7 @@ def match_patch_to_query(patch, day_query=None, time_query=None):
             tom_str = (now + timedelta(days=1)).strftime("%Y-%m-%d")
             if patch_date_str != tom_str:
                 return False
-        elif day_q in ["mon", "monday", "tue", "tuesday", "wed", "wednesday", "thu", "thursday", "fri", "friday", "sat", "saturday", "sun", "sunday"]:
+        elif day_q in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
             if not patch_day_name.startswith(day_q[:3]):
                 return False
         elif patch_date_str and day_q not in patch_date_str and day_q not in patch_day_name:
