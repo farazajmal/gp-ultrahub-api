@@ -210,9 +210,17 @@ Examples:
   "preferred_time":"after 4pm"
 }
 
-Do not use "recommend" if the patient's primary request is about appointment time.
-
 Use "availability_search" instead.
+
+Examples of day & doctor availability questions:
+- "is she available on Friday?"
+- "is he available on Friday?"
+- "is Dr Bushra available on Friday?"
+- "is she free tomorrow?"
+- "are there any slots on Friday?"
+- "is anyone available on Friday?"
+
+If the user asks whether a doctor or provider is available on a specific day, extract "intent":"availability_search" and set "day" to that day (e.g. "Friday", "Monday", "tomorrow").
 
 
 --------------------------------------------------
@@ -696,6 +704,25 @@ def fast_path_intent(last_message):
             "provider_type": None,
             "gender": None,
             "day": None,
+            "preferred_time": None,
+            "interest": None,
+        }
+
+    day_match = re.search(r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow)\b', text, re.I)
+    avail_match = re.search(r'\b(availab|free|open|slot|appointment|schedule)\b', text, re.I)
+    if day_match and (avail_match or re.search(r'^(is she|is he|is there|are they|can i|is doc|is dr)', text, re.I)):
+        day_str = day_match.group(1).capitalize()
+        doc_match = re.search(r'\b(dr\.?\s*[a-z]+|doctor\s*[a-z]+)\b', text, re.I)
+        doctor_name = doc_match.group(0) if doc_match else None
+        gender_str = "female" if re.search(r'\b(she|her|lady|female)\b', text, re.I) else ("male" if re.search(r'\b(he|him|male)\b', text, re.I) else None)
+        return {
+            "intent": "availability_search",
+            "doctor": doctor_name,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": None,
+            "gender": gender_str,
+            "day": day_str,
             "preferred_time": None,
             "interest": None,
         }
