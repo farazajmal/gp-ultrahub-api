@@ -3,7 +3,7 @@ import difflib
 import re
 
 from services.data_service import load_data
-from utils.date_parser import parse_availability, match_patch_to_query
+from utils.date_parser import parse_availability, match_patch_to_query, normalize_day
 from services.ranking_service import score_medical_match
 
 
@@ -92,9 +92,22 @@ def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
     """
     patches = doctor_obj.get("availability_patches") or []
     if not patches:
-        # Fallback if no patches are present: return True only if no day/time filter requested
-        if day or preferred_time:
-            return False, [], ""
+        if day:
+            norm_d = normalize_day(day)
+            norm_lower = norm_d.lower() if norm_d else ""
+            if norm_lower in ["monday", "tuesday", "wednesday", "thursday", "friday", "today", "tomorrow"]:
+                summary_str = f"{norm_d} from 8:30 am - 5:00 pm"
+                fake_patch = {
+                    "day_name": norm_d,
+                    "display": "8:30 am - 5:00 pm",
+                    "display_full": f"{norm_d}: 8:30 am - 5:00 pm",
+                    "booking_url": doctor_obj.get("booking_url", "")
+                }
+                return True, [fake_patch], summary_str
+            else:
+                return False, [], ""
+        elif preferred_time:
+            return True, [], doctor_obj.get("availability", "Available during clinic hours")
         return True, [], doctor_obj.get("availability", "")
 
     matching_patches = []
