@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from utils.conversation import build_conversation
+from utils.date_parser import normalize_day
 
 load_dotenv()
 
@@ -710,22 +711,41 @@ def fast_path_intent(last_message):
 
     day_match = re.search(r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow)\b', text, re.I)
     avail_match = re.search(r'\b(availab|free|open|slot|appointment|schedule)\b', text, re.I)
-    if day_match and (avail_match or re.search(r'^(is she|is he|is there|are they|can i|is doc|is dr)', text, re.I)):
-        day_str = day_match.group(1).capitalize()
-        doc_match = re.search(r'\b(dr\.?\s*[a-z]+|doctor\s*[a-z]+)\b', text, re.I)
-        doctor_name = doc_match.group(0) if doc_match else None
-        gender_str = "female" if re.search(r'\b(she|her|lady|female)\b', text, re.I) else ("male" if re.search(r'\b(he|him|male)\b', text, re.I) else None)
-        return {
-            "intent": "availability_search",
-            "doctor": doctor_name,
-            "clinic": None,
-            "any_clinic": False,
-            "provider_type": None,
-            "gender": gender_str,
-            "day": day_str,
-            "preferred_time": None,
-            "interest": None,
-        }
+    if day_match:
+        is_day_query = bool(
+            avail_match
+            or re.search(r'^(is she|is he|is there|are they|can i|is doc|is dr|what about|how about|and|is|on|what of|check)', text, re.I)
+            or re.match(r'^\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow)[\s!\?]*$', text, re.I)
+        )
+        if is_day_query:
+            day_str = normalize_day(day_match.group(1))
+            doc_match = re.search(r'\b(dr\.?\s*[a-z]+|doctor\s*[a-z]+)\b', text, re.I)
+            doctor_name = doc_match.group(0) if doc_match else None
+            gender_str = "female" if re.search(r'\b(she|her|lady|female)\b', text, re.I) else ("male" if re.search(r'\b(he|him|male)\b', text, re.I) else None)
+            
+            clinic_map = {
+                r"\b(toowoomba plaza|toowoomba)\b": "Toowoomba Plaza",
+                r"\b(burnett heads|burnett)\b": "Burnett Heads",
+                r"\b(gladstone)\b": "Gladstone",
+                r"\b(calliope)\b": "Calliope",
+            }
+            clinic_found = None
+            for pat, cname in clinic_map.items():
+                if re.search(pat, text, re.I):
+                    clinic_found = cname
+                    break
+
+            return {
+                "intent": "availability_search",
+                "doctor": doctor_name,
+                "clinic": clinic_found,
+                "any_clinic": False,
+                "provider_type": None,
+                "gender": gender_str,
+                "day": day_str,
+                "preferred_time": None,
+                "interest": None,
+            }
 
     return None
 
