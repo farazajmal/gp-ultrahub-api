@@ -43,24 +43,14 @@ def update_search_state(session_id, intent):
         if value is not None:
             state[key] = value
 
-    # If user conducts an availability search or clinic search without specifying a doctor or interest,
-    # clear previously locked doctor/interest so the search checks ALL available providers at that location.
-    # HOWEVER, if user asks a day availability question right after a doctor recommendation ("is she available on Friday?"),
-    # bind the inquiry to the last_recommended_doctor!
+    # Bind last_recommended_doctor if user asks a day availability question right after a doctor recommendation ("is she available on Friday?")
     if intent.get("intent") in ["availability_search", "search"]:
-        if intent.get("interest") is None and not intent.get("doctor"):
-            state["interest"] = None
-        if intent.get("doctor") is None and not state.get("last_recommended_doctor"):
-            state["doctor"] = None
-        elif intent.get("doctor") is None and state.get("last_recommended_doctor") and intent.get("day"):
+        if intent.get("doctor") is None and state.get("last_recommended_doctor") and intent.get("day"):
             state["doctor"] = state["last_recommended_doctor"].get("doctor")
             state["gender"] = None
 
     if intent.get("intent") == "recommend" and intent.get("doctor") is None:
         state["doctor"] = None
-
-    if intent.get("clinic") and intent.get("interest") is None:
-        state["interest"] = None
 
     # If any_clinic is requested, clear any previously locked specific clinic
     if intent.get("any_clinic"):
