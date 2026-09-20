@@ -86,7 +86,10 @@ def execute_intent(intent: dict):
             print("Requested doctor:", intent.get("doctor"))
 
             doctors = search_doctors(
-                doctor=intent.get("doctor")
+                doctor=intent.get("doctor"),
+                clinic=intent.get("clinic"),
+                day=intent.get("day"),
+                preferred_time=intent.get("preferred_time"),
             )
 
             print("Matched doctors:", [d["doctor"] for d in doctors])
