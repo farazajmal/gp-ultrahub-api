@@ -229,6 +229,8 @@ def score_doctor(doctor, intent, medical_scores):
 def rank_doctors(intent):
     doctors = get_all_doctors()
     interest = intent.get("interest")
+    day = intent.get("day")
+    preferred_time = intent.get("preferred_time")
 
     if interest:
         medical_scores = score_medical_match(interest, doctors)
@@ -239,7 +241,18 @@ def rank_doctors(intent):
     for doctor in doctors:
         score = score_doctor(doctor, intent, medical_scores)
         if score > 0:
-            ranked.append((score, doctor))
+            if day or preferred_time:
+                has_match, matching_patches, patch_summary = filter_doctor_patches(
+                    doctor, day=day, preferred_time=preferred_time
+                )
+                if not has_match:
+                    continue
+                doc_copy = dict(doctor)
+                doc_copy["matching_patches"] = matching_patches
+                doc_copy["availability_summary"] = patch_summary
+                ranked.append((score, doc_copy))
+            else:
+                ranked.append((score, doctor))
 
     ranked.sort(
         key=lambda item: (
@@ -291,7 +304,7 @@ def availability_search(intent):
             if _normalize_clinic(doctor_clinic) != _normalize_clinic(clinic):
                 continue
 
-        if gender:
+        if gender and not requested_doctor:
             doctor_gender = (doctor.get("gender") or "").lower()
             if doctor_gender != gender.lower():
                 continue
