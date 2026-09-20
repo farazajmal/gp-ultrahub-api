@@ -66,22 +66,27 @@ def chat(session_id: str, message: str):
 
     # Step 2: Location check probing
     if search_state.get("asked_other_locations"):
-        is_affirmative = bool(
-            re.search(r"^(yes|yeah|sure|ok|okay|please|yep|yup|definitely|of course|go ahead|check other|other|any)", message.strip(), re.I)
-            or intent.get("any_clinic")
-        )
-        is_negative = bool(re.search(r"^(no|nope|nah|not now|no thanks|never mind)", message.strip(), re.I))
-
-        if is_negative:
+        if intent.get("clinic"):
+            search_state["clinic"] = intent["clinic"]
+            search_state["any_clinic"] = False
             search_state["asked_other_locations"] = False
-            reply = "No problem! Please let me know if you'd like to check for different days, or if there is anything else I can help you with."
-            add_message(session_id, "assistant", reply)
-            return reply
+        else:
+            is_affirmative = bool(
+                re.search(r"^(yes|yeah|sure|ok|okay|please|yep|yup|definitely|of course|go ahead|check other|other|any)", message.strip(), re.I)
+                or intent.get("any_clinic")
+            )
+            is_negative = bool(re.search(r"^(no|nope|nah|not now|no thanks|never mind)", message.strip(), re.I))
 
-        if is_affirmative:
-            search_state["clinic"] = None
-            search_state["any_clinic"] = True
-            search_state["asked_other_locations"] = False
+            if is_negative:
+                search_state["asked_other_locations"] = False
+                reply = "No problem! Please let me know if you'd like to check for different days, or if there is anything else I can help you with."
+                add_message(session_id, "assistant", reply)
+                return reply
+
+            if is_affirmative:
+                search_state["clinic"] = None
+                search_state["any_clinic"] = True
+                search_state["asked_other_locations"] = False
 
     # Step 2.5: Unrelated / general questions
     if search_state.get("intent") == "general":
@@ -233,12 +238,25 @@ Clinic Services and Locations Data:
     )
 
     if has_no_match and search_state.get("clinic") and not search_state.get("any_clinic"):
+        if search_state.get("asked_location_prompted"):
+            search_state["asked_location_prompted"] = False
+            search_state["asked_other_locations"] = False
+            reply = (
+                f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}.\n\n"
+                f"Would you like to try checking across all locations, or look for a different day?\n\n"
+                "[choice: Check all locations]\n"
+                "[choice: Try another day]"
+            )
+            add_message(session_id, "assistant", reply)
+            return reply
+
         alt_state = dict(search_state)
         alt_state["clinic"] = None
         alt_state["any_clinic"] = True
         alt_result = execute_intent(alt_state)
         has_other_matches = bool(alt_result and alt_result.get("data"))
         search_state["asked_other_locations"] = True
+        search_state["asked_location_prompted"] = True
 
         if has_other_matches:
             reply = (
