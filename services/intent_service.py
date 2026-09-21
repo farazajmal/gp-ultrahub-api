@@ -710,17 +710,22 @@ def fast_path_intent(last_message):
         }
 
     day_match = re.search(r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow)\b', text, re.I)
-    avail_match = re.search(r'\b(availab|free|open|slot|appointment|schedule)\b', text, re.I)
-    if day_match:
-        is_day_query = bool(
-            avail_match
-            or re.search(r'^(is she|is he|is there|are they|can i|is doc|is dr|what about|how about|and|is|on|what of|check)', text, re.I)
-            or re.match(r'^\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow)[\s!\?]*$', text, re.I)
-        )
-        if is_day_query:
-            day_str = normalize_day(day_match.group(1))
-            doc_match = re.search(r'\b(dr\.?\s*[a-z]+|doctor\s*[a-z]+)\b', text, re.I)
-            doctor_name = doc_match.group(0) if doc_match else None
+    avail_match = re.search(r'\b(availab\w*|free|open|slot|slots|appointment|appointments|schedule)\b', text, re.I)
+    if day_match or avail_match:
+        is_availability = bool(avail_match or day_match)
+        if is_availability:
+            day_str = normalize_day(day_match.group(1)) if day_match else None
+            doc_match = re.search(r'\b(dr\.?\s+[a-z]+|doctor\s+[a-z]+)\b', text, re.I)
+            raw_doc = doc_match.group(0) if doc_match else None
+            stop_words = {"are", "is", "available", "at", "in", "for", "with", "who", "which", "that", "can", "do", "the", "a", "an", "to", "or", "on", "from", "doctor", "doctors", "dr", "drs"}
+            if raw_doc:
+                words = _normalize_name(raw_doc).split()
+                if not words or any(w in stop_words for w in words):
+                    doctor_name = None
+                else:
+                    doctor_name = raw_doc
+            else:
+                doctor_name = None
             gender_str = "female" if re.search(r'\b(she|her|lady|female)\b', text, re.I) else ("male" if re.search(r'\b(he|him|male)\b', text, re.I) else None)
             
             clinic_map = {
