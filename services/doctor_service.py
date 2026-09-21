@@ -60,8 +60,15 @@ def _doctor_name_matches(query, doctor_name, cutoff=0.7):
 def get_all_doctors():
     data = load_data()
     doctors = []
-    for clinic in data["clinics"].values():
-        doctors.extend(clinic)
+    if "clinics" in data:
+        for clinic in data["clinics"].values():
+            doctors.extend(clinic)
+    elif isinstance(data, dict):
+        for clinic_name, docs_val in data.items():
+            if isinstance(docs_val, dict):
+                doctors.extend(docs_val.values())
+            elif isinstance(docs_val, list):
+                doctors.extend(docs_val)
     return doctors
 
 
