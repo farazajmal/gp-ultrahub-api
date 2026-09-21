@@ -88,33 +88,25 @@ def find_available_today():
 def get_next_available_time(doctor_obj):
     """
     Computes the Next Available time for a doctor.
-    Never returns 'Call clinic to book'.
+    Returns exact day + date + time format (e.g. 'Friday, Sep 25 from 8:30 am').
     """
     patches = doctor_obj.get("availability_patches") or []
     if patches:
         p0 = patches[0]
-        d_name = p0.get("day_name") or p0.get("date")
-        times = [p.get("display") for p in patches if p.get("day_name") == d_name or p.get("date") == d_name]
-        if times and d_name:
-            return f"{d_name} from " + " and ".join(times)
-        elif p0.get("display_full"):
+        if p0.get("display_full"):
             return p0.get("display_full")
+        d_name = p0.get("day_name") or p0.get("date")
+        date_lbl = p0.get("date_label") or ""
+        times = [p.get("display") for p in patches if p.get("day_name") == d_name or p.get("date") == d_name]
+        prefix = f"{d_name}, {date_lbl}" if date_lbl else d_name
+        if times and prefix:
+            return f"{prefix} from " + " and ".join(times)
 
     avail = doctor_obj.get("availability")
     if avail and avail.lower() != "call clinic to book":
         return avail
 
-    now = datetime.now()
-    if now.weekday() < 5 and now.hour < 17:
-        day_name = now.strftime("%A")
-        return f"{day_name} from 8:30 am - 5:00 pm"
-
-    next_day = now + timedelta(days=1)
-    while next_day.weekday() >= 5:
-        next_day += timedelta(days=1)
-
-    day_name = next_day.strftime("%A")
-    return f"{day_name} from 8:30 am - 5:00 pm"
+    return "Call clinic to book"
 
 
 def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
@@ -124,25 +116,17 @@ def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
     """
     patches = doctor_obj.get("availability_patches") or []
     if not patches:
-        if day:
-            norm_d = normalize_day(day)
-            norm_lower = norm_d.lower() if norm_d else ""
-            if norm_lower in ["monday", "tuesday", "wednesday", "thursday", "friday", "today", "tomorrow"]:
-                summary_str = f"{norm_d} from 8:30 am - 5:00 pm"
-                fake_patch = {
-                    "day_name": norm_d,
-                    "display": "8:30 am - 5:00 pm",
-                    "display_full": f"{norm_d}: 8:30 am - 5:00 pm",
-                    "booking_url": doctor_obj.get("booking_url", "")
-                }
-                return True, [fake_patch], summary_str
-            else:
+        avail = doctor_obj.get("availability")
+        if avail and avail.lower() != "call clinic to book":
+            if day:
+                norm_d = normalize_day(day)
+                if norm_d and norm_d.lower() in avail.lower():
+                    return True, [], avail
                 return False, [], ""
-        elif preferred_time:
-            return True, [], doctor_obj.get("availability", "Available during clinic hours")
-        
-        next_avail = get_next_available_time(doctor_obj)
-        return True, [], next_avail
+            elif preferred_time:
+                return True, [], avail
+            return True, [], avail
+        return False, [], ""
 
     if not day and not preferred_time:
         next_avail = get_next_available_time(doctor_obj)
@@ -156,15 +140,16 @@ def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
     if not matching_patches:
         return False, [], ""
 
-    # Group matching patches by day for nice string representation
-    by_day = {}
-    for mp in matching_patches:
-        d_name = mp.get("day_name")
-        by_day.setdefault(d_name, []).append(mp.get("display"))
-
     summary_parts = []
-    for d_name, times in by_day.items():
-        summary_parts.append(f"{d_name} from " + " and ".join(times))
+    for mp in matching_patches:
+        disp_full = mp.get("display_full")
+        if disp_full:
+            summary_parts.append(disp_full)
+        else:
+            d_name = mp.get("day_name") or mp.get("date")
+            d_lbl = mp.get("date_label") or ""
+            d_prefix = f"{d_name}, {d_lbl}" if d_lbl else d_name
+            summary_parts.append(f"{d_prefix}: {mp.get('display')}")
 
     patch_summary = ", ".join(summary_parts)
     return True, matching_patches, patch_summary
