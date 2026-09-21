@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -574,7 +575,10 @@ Toowoomba Plaza
 If a clinic name appears together with another request, extract the clinic and the other fields normally.
 """
 
-import re
+def _normalize_name(name):
+    name = (name or "").lower()
+    name = re.sub(r'^dr\.?\s*', '', name)
+    return name.strip()
 
 
 def fast_path_intent(last_message):
