@@ -85,6 +85,38 @@ def find_available_today():
     return available
 
 
+def get_next_available_time(doctor_obj):
+    """
+    Computes the Next Available time for a doctor.
+    Never returns 'Call clinic to book'.
+    """
+    patches = doctor_obj.get("availability_patches") or []
+    if patches:
+        p0 = patches[0]
+        d_name = p0.get("day_name") or p0.get("date")
+        times = [p.get("display") for p in patches if p.get("day_name") == d_name or p.get("date") == d_name]
+        if times and d_name:
+            return f"{d_name} from " + " and ".join(times)
+        elif p0.get("display_full"):
+            return p0.get("display_full")
+
+    avail = doctor_obj.get("availability")
+    if avail and avail.lower() != "call clinic to book":
+        return avail
+
+    now = datetime.now()
+    if now.weekday() < 5 and now.hour < 17:
+        day_name = now.strftime("%A")
+        return f"{day_name} from 8:30 am - 5:00 pm"
+
+    next_day = now + timedelta(days=1)
+    while next_day.weekday() >= 5:
+        next_day += timedelta(days=1)
+
+    day_name = next_day.strftime("%A")
+    return f"{day_name} from 8:30 am - 5:00 pm"
+
+
 def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
     """
     Extracts and filters matching availability patches for a doctor.
@@ -108,7 +140,13 @@ def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
                 return False, [], ""
         elif preferred_time:
             return True, [], doctor_obj.get("availability", "Available during clinic hours")
-        return True, [], doctor_obj.get("availability", "")
+        
+        next_avail = get_next_available_time(doctor_obj)
+        return True, [], next_avail
+
+    if not day and not preferred_time:
+        next_avail = get_next_available_time(doctor_obj)
+        return True, patches, next_avail
 
     matching_patches = []
     for p in patches:
