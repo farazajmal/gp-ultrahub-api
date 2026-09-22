@@ -192,7 +192,7 @@ def search_doctors(
                 continue
 
             doc_copy = dict(item)
-            if matching_patches:
+            if matching_patches or patch_summary:
                 doc_copy["matching_patches"] = matching_patches
                 doc_copy["availability_summary"] = patch_summary
             filtered.append(doc_copy)
@@ -219,10 +219,19 @@ def search_doctors(
             continue
 
         doc_copy = dict(item)
-        if matching_patches:
+        if matching_patches or patch_summary:
             doc_copy["matching_patches"] = matching_patches
             doc_copy["availability_summary"] = patch_summary
+        elif item.get("availability"):
+            doc_copy["availability_summary"] = item.get("availability")
         filtered.append(doc_copy)
+
+    with_live_slots = [
+        d for d in filtered
+        if d.get("availability_summary") and d.get("availability_summary").strip().lower() != "call clinic to book"
+    ]
+    if with_live_slots:
+        return with_live_slots
 
     return filtered
 
@@ -295,14 +304,20 @@ def rank_doctors(intent):
                 doc_copy["availability_summary"] = patch_summary
                 ranked.append((score, doc_copy))
             else:
-                ranked.append((score, doctor))
+                doc_copy = dict(doctor)
+                _, _, patch_summary = filter_doctor_patches(doctor)
+                doc_copy["availability_summary"] = patch_summary
+                ranked.append((score, doc_copy))
 
-    ranked.sort(
-        key=lambda item: (
-            -item[0],
-            parse_availability(item[1].get("availability"))
-        )
-    )
+    def _sort_key(item):
+        score = item[0]
+        doc = item[1]
+        summary = doc.get("availability_summary") or doc.get("availability") or ""
+        has_live = 1 if summary and summary.strip().lower() != "call clinic to book" else 0
+        avail_time = parse_availability(summary)
+        return (-score, -has_live, avail_time)
+
+    ranked.sort(key=_sort_key)
 
     return [doctor for _, doctor in ranked]
 
@@ -352,7 +367,7 @@ def availability_search(intent):
             if doctor_gender != gender.lower():
                 continue
 
-        if not doctor.get("availability") and not doctor.get("availability_patches"):
+        if not doctor.get("availability") and not doctor.get("availability_patches") and not doctor.get("patches"):
             continue
 
         has_match, matching_patches, patch_summary = filter_doctor_patches(doctor, day=day, preferred_time=preferred_time)
@@ -360,13 +375,16 @@ def availability_search(intent):
             continue
 
         doc_copy = dict(doctor)
-        if matching_patches:
+        if matching_patches or patch_summary:
             doc_copy["matching_patches"] = matching_patches
             doc_copy["availability_summary"] = patch_summary
         results.append(doc_copy)
 
-    results.sort(
-        key=lambda doctor: parse_availability(doctor.get("availability"))
-    )
+    with_live_slots = [
+        d for d in results
+        if d.get("availability_summary") and d.get("availability_summary").strip().lower() != "call clinic to book"
+    ]
+    if with_live_slots:
+        return with_live_slots[:5]
 
     return results[:5]
