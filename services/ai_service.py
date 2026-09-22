@@ -384,11 +384,18 @@ Clinic Services and Locations Data:
         and result["type"] == "availability_search"
     ):
         doctors = result.get("data") or []
+        req_day = (search_state.get("day") or "").capitalize()
         if not doctors:
-            reply = (
-                "I couldn't find any providers matching that time or location. Could you "
-                "try a different day or let me know which clinic you prefer?"
-            )
+            if req_day == "Yesterday":
+                reply = (
+                    "Yesterday's appointment schedule has passed. "
+                    "Would you like to check today's available doctors or look at upcoming days?"
+                )
+            else:
+                reply = (
+                    "I couldn't find any providers matching that time or location. Could you "
+                    "try a different day or let me know which clinic you prefer?"
+                )
             add_message(session_id, "assistant", reply)
             return reply
 
@@ -401,8 +408,13 @@ Clinic Services and Locations Data:
                 f"Book here: {doctor['booking_url']}"
             )
 
+        if req_day == "Yesterday":
+            intro = "Yesterday's appointment schedule has passed. Here are our upcoming available doctor options:"
+        else:
+            intro = "Here are the available doctor options and their time patches:"
+
         reply = (
-            "Here are the available doctor options and their time patches:\n\n" +
+            f"{intro}\n\n" +
             "\n\n".join(lines) +
             "\n\nYou can click any of the booking links above to select your appointment."
         )
