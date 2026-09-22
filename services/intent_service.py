@@ -377,6 +377,7 @@ Recognize:
 
 - today
 - tomorrow
+- yesterday
 - Monday
 - Tuesday
 - Wednesday
@@ -713,7 +714,7 @@ def fast_path_intent(last_message):
             "interest": None,
         }
 
-    day_match = re.search(r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow)\b', text, re.I)
+    day_match = re.search(r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow|yesterday|today\'s|tomorrow\'s|yesterday\'s|todays|tomorrows|yesterdays)\b', text, re.I)
     avail_match = re.search(r'\b(availab\w*|free|open|slot|slots|appointment|appointments|schedule)\b', text, re.I)
     if day_match or avail_match:
         is_availability = bool(avail_match or day_match)
