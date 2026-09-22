@@ -3,7 +3,7 @@ import difflib
 import re
 
 from services.data_service import load_data
-from utils.date_parser import parse_availability, match_patch_to_query, normalize_day
+from utils.date_parser import parse_availability, match_patch_to_query, normalize_day, get_au_now
 from services.ranking_service import score_medical_match
 
 
@@ -78,15 +78,15 @@ def find_earliest():
         return None
     return min(
         doctors,
-        key=lambda doctor: parse_availability(doctor.get("availability"))
+        key=lambda doctor: parse_availability(doctor.get("availability_summary") or doctor.get("availability"))
     )
 
 
 def find_available_today():
-    today = datetime.now().date()
+    today = get_au_now().date()
     available = []
     for doctor in get_all_doctors():
-        appointment = parse_availability(doctor.get("availability"))
+        appointment = parse_availability(doctor.get("availability_summary") or doctor.get("availability"))
         if appointment.date() == today:
             available.append(doctor)
     return available
@@ -315,6 +315,11 @@ def rank_doctors(intent):
         summary = doc.get("availability_summary") or doc.get("availability") or ""
         has_live = 1 if summary and summary.strip().lower() != "call clinic to book" else 0
         avail_time = parse_availability(summary)
+        
+        # If user explicitly asked for "earliest" / "first available":
+        if preferred_time and "earliest" in str(preferred_time).lower():
+            return (-has_live, avail_time, -score)
+
         return (-score, -has_live, avail_time)
 
     ranked.sort(key=_sort_key)
@@ -379,6 +384,10 @@ def availability_search(intent):
             doc_copy["matching_patches"] = matching_patches
             doc_copy["availability_summary"] = patch_summary
         results.append(doc_copy)
+
+    results.sort(
+        key=lambda d: parse_availability(d.get("availability_summary") or d.get("availability"))
+    )
 
     with_live_slots = [
         d for d in results
