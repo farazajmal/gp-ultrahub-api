@@ -1,38 +1,61 @@
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import re
+
+AU_TZ = ZoneInfo("Australia/Brisbane")
+
+
+def get_au_now():
+    return datetime.now(AU_TZ)
 
 
 def parse_availability(text: str):
-    if not text:
-        return datetime.max
+    if not text or "call clinic" in text.lower():
+        return datetime.max.replace(tzinfo=AU_TZ)
 
-    now = datetime.now()
+    now = get_au_now()
     text = text.strip()
 
-    # 1. Today, 5:30 pm
+    # 1. Match patch format: 'Tuesday, Sep 22: 11:30 am - 6:45 pm' or 'Sep 22: 11:30 am'
+    m = re.search(r'(?:[A-Za-z]+,\s*)?([A-Za-z]{3,9})\s+(\d{1,2})(?:\s*:\s*(\d{1,2}:\d{2}\s*(?:am|pm)?))?', text, re.I)
+    if m:
+        month_str = m.group(1)
+        day_num = int(m.group(2))
+        time_str = m.group(3) or '09:00 am'
+        try:
+            time_clean = time_str.strip()
+            dt_str = f'{day_num} {month_str} {now.year} {time_clean}'
+            dt = datetime.strptime(dt_str, '%d %b %Y %I:%M %p').replace(tzinfo=AU_TZ)
+            if dt < now - timedelta(days=30):
+                dt = datetime.strptime(f'{day_num} {month_str} {now.year+1} {time_clean}', '%d %b %Y %I:%M %p').replace(tzinfo=AU_TZ)
+            return dt
+        except Exception:
+            pass
+
+    # 2. Today, 5:30 pm
     if text.lower().startswith("today"):
         try:
             time_part = text.split(",", 1)[1].strip()
             t = datetime.strptime(time_part, "%I:%M %p")
-            return datetime(now.year, now.month, now.day, t.hour, t.minute)
+            return datetime(now.year, now.month, now.day, t.hour, t.minute, tzinfo=AU_TZ)
         except Exception:
             return now
 
-    # 2. Tomorrow, 5:30 pm
+    # 3. Tomorrow, 5:30 pm
     if text.lower().startswith("tomorrow"):
         try:
             time_part = text.split(",", 1)[1].strip()
             t = datetime.strptime(time_part, "%I:%M %p")
-            return datetime(now.year, now.month, now.day, t.hour, t.minute) + timedelta(days=1)
+            return datetime(now.year, now.month, now.day, t.hour, t.minute, tzinfo=AU_TZ) + timedelta(days=1)
         except Exception:
             return now + timedelta(days=1)
 
-    # 3. in X days
+    # 4. in X days
     match = re.match(r"in (\d+) days?", text, re.IGNORECASE)
     if match:
         return now + timedelta(days=int(match.group(1)))
 
-    # 4. Weekday: Mon, 12:15 pm or Monday
+    # 5. Weekday: Mon, 12:15 pm or Monday
     weekdays = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6,
                 "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
     try:
@@ -46,23 +69,11 @@ def parse_availability(text: str):
             days_ahead = (target_weekday - today_weekday) % 7
             if days_ahead == 0:
                 days_ahead = 7
-            return datetime(now.year, now.month, now.day, t.hour, t.minute) + timedelta(days=days_ahead)
+            return datetime(now.year, now.month, now.day, t.hour, t.minute, tzinfo=AU_TZ) + timedelta(days=days_ahead)
     except Exception:
         pass
 
-    # 5. Day Month: 25 Sep, 8:30 am or 25 Sep
-    try:
-        parts = [p.strip() for p in text.split(",")]
-        date_str = parts[0]
-        time_str = parts[1] if len(parts) > 1 else "09:00 am"
-        dt = datetime.strptime(f"{date_str} {now.year} {time_str}", "%d %b %Y %I:%M %p")
-        if dt < now - timedelta(days=30):
-            dt = datetime.strptime(f"{date_str} {now.year + 1} {time_str}", "%d %b %Y %I:%M %p")
-        return dt
-    except Exception:
-        pass
-
-    return datetime.max
+    return datetime.max.replace(tzinfo=AU_TZ)
 
 
 def parse_time_to_minutes(time_str: str):
@@ -136,7 +147,7 @@ def match_patch_to_query(patch, day_query=None, time_query=None):
     if not patch:
         return False
 
-    now = datetime.now()
+    now = get_au_now()
     patch_date_str = patch.get("date")  # YYYY-MM-DD
     patch_day_name = patch.get("day_name", "").lower()  # e.g. "monday"
 
