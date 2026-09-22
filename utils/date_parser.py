@@ -114,7 +114,10 @@ DAY_TYPOS = {
     "tuesady": "tuesday", "tues": "tuesday", "tue": "tuesday",
     "wednsday": "wednesday", "wedsday": "wednesday", "weds": "wednesday", "wed": "wednesday",
     "satday": "saturday", "sat": "saturday",
-    "sunday": "sunday", "sun": "sunday"
+    "sunday": "sunday", "sun": "sunday",
+    "today's": "today", "todays": "today",
+    "tomorrow's": "tomorrow", "tomorrows": "tomorrow",
+    "yesterday's": "yesterday", "yesterdays": "yesterday"
 }
 
 def normalize_day(day_str):
@@ -140,13 +143,17 @@ def match_patch_to_query(patch, day_query=None, time_query=None):
     # 1. Day Match
     if day_query:
         day_q = normalize_day(day_query).lower()
-        if day_q == "today":
+        if day_q in ["today", "today's"]:
             today_str = now.strftime("%Y-%m-%d")
             if patch_date_str != today_str:
                 return False
-        elif day_q == "tomorrow":
+        elif day_q in ["tomorrow", "tomorrow's"]:
             tom_str = (now + timedelta(days=1)).strftime("%Y-%m-%d")
             if patch_date_str != tom_str:
+                return False
+        elif day_q in ["yesterday", "yesterday's"]:
+            yest_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+            if patch_date_str != yest_str:
                 return False
         elif day_q in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
             if not patch_day_name.startswith(day_q[:3]):
