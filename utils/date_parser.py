@@ -16,8 +16,8 @@ def parse_availability(text: str):
     now = get_au_now()
     text = text.strip()
 
-    # 1. Match patch format: 'Tuesday, Sep 22: 11:30 am - 6:45 pm' or 'Sep 22: 11:30 am'
-    m = re.search(r'(?:[A-Za-z]+,\s*)?([A-Za-z]{3,9})\s+(\d{1,2})(?:\s*:\s*(\d{1,2}:\d{2}\s*(?:am|pm)?))?', text, re.I)
+    # 1. Match patch format: 'Tuesday, Sep 22: 11:30 am - 6:45 pm' or 'Thursday, Sep 24 from 1:00 pm'
+    m = re.search(r'(?:[A-Za-z]+,\s*)?([A-Za-z]{3,9})\s+(\d{1,2})(?:\s*(?:from|:|-)?\s*(\d{1,2}:\d{2}\s*(?:am|pm)?))?', text, re.I)
     if m:
         month_str = m.group(1)
         day_num = int(m.group(2))
