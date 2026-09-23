@@ -442,6 +442,8 @@ Clinic Services and Locations Data:
             add_message(session_id, "assistant", reply)
             return reply
 
+        req_day = (search_state.get("day") or "").capitalize()
+
         lines = []
         for doctor in doctors:
             avail_text = doctor.get("availability_summary") or doctor.get("availability")
