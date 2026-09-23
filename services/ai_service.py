@@ -18,6 +18,8 @@ from services.search_state_service import (
     clear_search_state,
 )
 from services.data_service import load_services_data
+from utils.date_parser import get_au_now
+from services.doctor_service import find_next_available_day
 
 load_dotenv()
 
@@ -29,6 +31,75 @@ GREETING_PATTERN = re.compile(
     r"^\s*(hi+|hey+|hello+|hiya|good\s?morning|good\s?afternoon|good\s?evening|greetings)[\s!.,]*$",
     re.IGNORECASE
 )
+
+
+def format_day_phrase(day_str):
+    if not day_str:
+        return ""
+    d_lower = day_str.strip().lower()
+    if d_lower in ["today", "today's"]:
+        return "today"
+    elif d_lower in ["tomorrow", "tomorrow's"]:
+        return "tomorrow"
+    elif d_lower in ["yesterday", "yesterday's"]:
+        return "yesterday"
+    else:
+        return f"on {day_str.capitalize()}"
+
+
+def build_no_availability_reply(search_state):
+    clinic = search_state.get("clinic")
+    req_day = search_state.get("day")
+    provider_type = search_state.get("provider_type")
+    doc_name = search_state.get("doctor")
+
+    now = get_au_now()
+    is_weekend = (now.weekday() in (5, 6))
+
+    clinic_suffix = f" at GP UltraHub {clinic}" if clinic else " at GP UltraHub"
+    day_phrase = format_day_phrase(req_day) if req_day else ""
+
+    next_info = find_next_available_day(
+        clinic=clinic,
+        provider_type=provider_type,
+        doctor_name=doc_name
+    )
+
+    if req_day and req_day.lower() in ["yesterday", "yesterday's"]:
+        header = "Yesterday's appointment schedule has passed."
+    elif day_phrase:
+        header = f"I couldn't find any available doctors{clinic_suffix} {day_phrase}."
+    else:
+        header = f"I couldn't find an available doctor matching that{clinic_suffix}."
+
+    if next_info:
+        label = next_info["date_label"]
+        day_n = next_info["day_name"]
+        rel_str = " (tomorrow)" if next_info["is_tomorrow"] else ""
+
+        if is_weekend:
+            body = f"Our clinics operate Monday through Friday. The earliest available appointments are on **{label}**{rel_str}."
+        else:
+            body = f"The earliest available appointments are on **{label}**{rel_str}. Would you like to check availability for {day_n}?"
+
+        choices = [f"[choice: Check {day_n} availability]"]
+        if clinic:
+            choices.append("[choice: Check all locations]")
+        else:
+            choices.append("[choice: Try another day]")
+
+        return f"{header}\n\n{body}\n\n" + "\n".join(choices)
+    else:
+        if is_weekend:
+            body = "Our clinics operate Monday through Friday. Please call the clinic directly to enquire about upcoming appointments or book for a weekday."
+        else:
+            body = "Please try checking another location, or call the clinic directly for further assistance."
+
+        choices = []
+        if clinic:
+            choices.append("[choice: Check all locations]")
+        choices.append("[choice: Try another day]")
+        return f"{header}\n\n{body}\n\n" + "\n".join(choices)
 
 
 def chat(session_id: str, message: str):
@@ -270,25 +341,10 @@ Clinic Services and Locations Data:
                 "[choice: Yes, check other locations]\n"
                 "[choice: No, thank you]"
             )
-        elif search_state.get("day"):
-            req_day = search_state.get("day")
-            search_state["asked_other_locations"] = False
-            search_state["asked_location_prompted"] = False
-            reply = (
-                f"I couldn't find any available doctors at GP UltraHub on {req_day}.\n\n"
-                "Our clinics operate Monday through Friday. Would you like to check availability for Monday or Friday, or try another day?\n\n"
-                "[choice: Check Monday availability]\n"
-                "[choice: Check Friday availability]"
-            )
         else:
             search_state["asked_other_locations"] = False
             search_state["asked_location_prompted"] = False
-            reply = (
-                f"I couldn't find an available doctor matching that at GP UltraHub {search_state['clinic']}.\n\n"
-                "Would you like to try checking for a different day, or tell me a bit more about what you need?\n\n"
-                "[choice: Check Monday availability]\n"
-                "[choice: Check Friday availability]"
-            )
+            reply = build_no_availability_reply(search_state)
 
         add_message(session_id, "assistant", reply)
         return reply
@@ -342,10 +398,7 @@ Clinic Services and Locations Data:
         and result["type"] == "search"
         and not result["data"]
     ):
-        reply = (
-            "I couldn't find any matching doctors for that time or service. "
-            "Would you like to try a different day, or tell me a bit more about what you need?"
-        )
+        reply = build_no_availability_reply(search_state)
         add_message(session_id, "assistant", reply)
         return reply
 
@@ -384,18 +437,8 @@ Clinic Services and Locations Data:
         and result["type"] == "availability_search"
     ):
         doctors = result.get("data") or []
-        req_day = (search_state.get("day") or "").capitalize()
         if not doctors:
-            if req_day == "Yesterday":
-                reply = (
-                    "Yesterday's appointment schedule has passed. "
-                    "Would you like to check today's available doctors or look at upcoming days?"
-                )
-            else:
-                reply = (
-                    "I couldn't find any providers matching that time or location. Could you "
-                    "try a different day or let me know which clinic you prefer?"
-                )
+            reply = build_no_availability_reply(search_state)
             add_message(session_id, "assistant", reply)
             return reply
 
