@@ -97,7 +97,7 @@ def get_next_available_time(doctor_obj):
     Computes the Next Available time for a doctor.
     Returns exact day + date + time format (e.g. 'Friday, Sep 25 from 8:30 am').
     """
-    patches = doctor_obj.get("availability_patches") or []
+    patches = doctor_obj.get("availability_patches") or doctor_obj.get("patches") or []
     if patches:
         p0 = patches[0]
         if p0.get("display_full"):
@@ -105,7 +105,7 @@ def get_next_available_time(doctor_obj):
         d_name = p0.get("day_name") or p0.get("date")
         date_lbl = p0.get("date_label") or ""
         times = [p.get("display") for p in patches if p.get("day_name") == d_name or p.get("date") == d_name]
-        prefix = f"{d_name}, {date_lbl}" if date_lbl else d_name
+        prefix = date_lbl if date_lbl else d_name
         if times and prefix:
             return f"{prefix} from " + " and ".join(times)
 
@@ -116,12 +116,63 @@ def get_next_available_time(doctor_obj):
     return "Call clinic to book"
 
 
+def find_next_available_day(clinic=None, provider_type=None, doctor_name=None):
+    """
+    Finds the earliest upcoming day/date with open appointment patches for specified clinic/doctor/provider_type.
+    Returns dict with:
+      - 'date': YYYY-MM-DD
+      - 'day_name': e.g. 'Thursday'
+      - 'date_label': e.g. 'Thursday, Sep 24'
+      - 'is_tomorrow': bool
+    or None if no patches found.
+    """
+    now = get_au_now()
+    today_str = now.strftime("%Y-%m-%d")
+    tom_str = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    doctors = get_all_doctors()
+    candidate_patches = []
+
+    for doc in doctors:
+        if doctor_name and not _doctor_name_matches(doctor_name, doc.get("doctor") or ""):
+            continue
+        if clinic:
+            doc_clinic = doc.get("clinic") or ""
+            if _normalize_clinic(doc_clinic) != _normalize_clinic(clinic):
+                continue
+        if provider_type:
+            role = (doc.get("role") or "").lower()
+            provider = (doc.get("provider_type") or "").lower()
+            if provider_type.lower() not in role and provider_type.lower() not in provider:
+                continue
+
+        patches = doc.get("availability_patches") or doc.get("patches") or []
+        for p in patches:
+            p_date = p.get("date")
+            if p_date and p_date >= today_str:
+                candidate_patches.append(p)
+
+    if not candidate_patches:
+        return None
+
+    candidate_patches.sort(key=lambda p: p.get("date"))
+    earliest = candidate_patches[0]
+    e_date = earliest.get("date")
+
+    return {
+        "date": e_date,
+        "day_name": earliest.get("day_name") or "",
+        "date_label": earliest.get("date_label") or earliest.get("day_name") or e_date,
+        "is_tomorrow": (e_date == tom_str)
+    }
+
+
 def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
     """
     Extracts and filters matching availability patches for a doctor.
     Returns (has_match, matching_patches, patch_summary_str)
     """
-    patches = doctor_obj.get("availability_patches") or []
+    patches = doctor_obj.get("availability_patches") or doctor_obj.get("patches") or []
     if not patches:
         avail = doctor_obj.get("availability")
         if avail and avail.lower() != "call clinic to book":
@@ -155,7 +206,7 @@ def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
         else:
             d_name = mp.get("day_name") or mp.get("date")
             d_lbl = mp.get("date_label") or ""
-            d_prefix = f"{d_name}, {d_lbl}" if d_lbl else d_name
+            d_prefix = d_lbl if d_lbl else d_name
             summary_parts.append(f"{d_prefix}: {mp.get('display')}")
 
     patch_summary = ", ".join(summary_parts)
