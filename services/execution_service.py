@@ -38,6 +38,7 @@ def execute_intent(intent: dict):
             clinic=intent.get("clinic"),
             provider_type=intent.get("provider_type"),
             day=intent.get("day"),
+            preferred_time=intent.get("preferred_time"),
             interest=intent.get("interest"),
             gender=intent.get("gender"),
         )
@@ -55,6 +56,7 @@ def execute_intent(intent: dict):
                     clinic=intent.get("clinic"),
                     provider_type=fallback,
                     day=intent.get("day"),
+                    preferred_time=intent.get("preferred_time"),
                     interest=intent.get("interest"),
                     gender=intent.get("gender"),
                 )
@@ -94,22 +96,16 @@ def execute_intent(intent: dict):
 
             print("Matched doctors:", [d["doctor"] for d in doctors])
 
-            if doctors:
-                return {
-                    "type": "recommend",
-                    "data": doctors[0]
-                }
-
             return {
                 "type": "recommend",
-                "data": None
+                "data": doctors
             }
 
-        doctor = recommend_doctor(intent)
+        doctors = rank_doctors(intent)
 
         return {
             "type": "recommend",
-            "data": doctor
+            "data": doctors
         }
 
     # ----------------------------------------
