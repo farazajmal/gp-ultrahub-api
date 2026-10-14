@@ -688,7 +688,7 @@ def fast_path_intent(last_message):
             "interest": "General health check-up",
         }
 
-    if re.search(r"^(earliest available appointment|earliest available|who is the earliest available\??|who'?s the earliest available\??|earliest appointment)$", text, re.I):
+    if re.search(r"^(earliest available appointment|earliest available|earliest|who is the earliest available\??|who'?s the earliest available\??|earliest appointment)$", text, re.I):
         return {
             "intent": "availability_search",
             "doctor": None,
@@ -698,6 +698,32 @@ def fast_path_intent(last_message):
             "gender": None,
             "day": None,
             "preferred_time": "earliest available",
+            "interest": None,
+        }
+
+    if re.search(r"^(any time|anytime|any day|anyday|no preference|any|whenever|doesn't matter|does not matter)$", text, re.I):
+        return {
+            "intent": "search",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": None,
+            "gender": None,
+            "day": None,
+            "preferred_time": "any time",
+            "interest": None,
+        }
+
+    if re.search(r"^(try another day|different day|another day|check another day)$", text, re.I):
+        return {
+            "intent": "search",
+            "doctor": None,
+            "clinic": None,
+            "any_clinic": False,
+            "provider_type": None,
+            "gender": None,
+            "day": "CLEAR_DAY",
+            "preferred_time": None,
             "interest": None,
         }
 
