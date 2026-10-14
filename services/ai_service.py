@@ -102,6 +102,31 @@ def build_no_availability_reply(search_state):
         return f"{header}\n\n{body}\n\n" + "\n".join(choices)
 
 
+def get_preferred_time_choices():
+    now = get_au_now()
+    weekday = now.weekday()  # 0=Mon, 4=Fri, 5=Sat, 6=Sun
+    if weekday in (5, 6):
+        return (
+            "[choice: Earliest available]\n"
+            "[choice: Monday]\n"
+            "[choice: Any time]"
+        )
+    elif weekday == 4:
+        return (
+            "[choice: Earliest available]\n"
+            "[choice: Today]\n"
+            "[choice: Monday]\n"
+            "[choice: Any time]"
+        )
+    else:
+        return (
+            "[choice: Earliest available]\n"
+            "[choice: Today]\n"
+            "[choice: Tomorrow]\n"
+            "[choice: Any time]"
+        )
+
+
 def chat(session_id: str, message: str):
 
     # Save the user's message first
@@ -261,58 +286,32 @@ Clinic Services and Locations Data:
         add_message(session_id, "assistant", reply)
         return reply
 
-    # Step 3.5: Reason / Illness / Problem Check
-    is_availability_search = search_state.get("intent") == "availability_search"
-    # Step 3.5: Reason / Illness / Problem Check
-    is_availability_search = (
-        search_state.get("intent") == "availability_search"
-        or bool(search_state.get("day"))
-        or bool(search_state.get("preferred_time"))
-    )
-    has_interest = bool(search_state.get("interest"))
-    has_specific_provider = bool(search_state.get("provider_type") and search_state.get("provider_type") != "GP")
-    has_preferred_time = bool(search_state.get("preferred_time"))
-    already_asked_reason = search_state.get("reason_prompted", False)
+    # Step 3: Preferred Day & Time Check
+    has_day_or_time = bool(search_state.get("day")) or bool(search_state.get("preferred_time"))
+    time_prompted = search_state.get("time_prompted", False)
 
-    if not has_interest:
-        for m in history:
-            if m.get("role") == "user":
-                c = m.get("content", "")
-                if re.search(r'\b(check[-\s]?up|health check|routine check|general check|annual check|medical assessment)\b', c, re.I):
-                    has_interest = True
-                    search_state["interest"] = "General health check-up"
-                    break
-
-    if (
-        has_clinic
-        and not has_doctor
-        and not has_interest
-        and not has_specific_provider
-        and not has_preferred_time
-        and not is_availability_search
-        and not already_asked_reason
-    ):
-        search_state["reason_prompted"] = True
+    if not has_day_or_time and not time_prompted:
+        search_state["time_prompted"] = True
+        choices_text = get_preferred_time_choices()
         reply = (
-            "Could you tell me what you'd like to be seen for, or what symptoms or illness you're experiencing?\n\n"
-            "(If you're not sure, just let me know and I can recommend a General Practitioner for a standard consultation.)"
+            "When would you prefer your appointment? Please select an option below or let me know your preferred day and time:\n\n"
+            f"{choices_text}"
         )
         add_message(session_id, "assistant", reply)
         return reply
 
-    if already_asked_reason and not has_interest and not has_doctor:
-        search_state["provider_type"] = search_state.get("provider_type") or "GP"
-        search_state["reason_prompted"] = False
+    # Step 3.5: Default to GP if no problem or provider specified
+    if not search_state.get("interest") and not search_state.get("provider_type"):
+        search_state["provider_type"] = "GP"
 
     # Step 4: Execute the search
     result = execute_intent(search_state)
 
-    has_no_match = (
-        result is None
-        or (result.get("type") == "search" and not result.get("data"))
-        or (result.get("type") == "recommend" and not result.get("data"))
-        or (result.get("type") == "availability_search" and not result.get("data"))
-    )
+    doctors = result.get("data") if result else []
+    if isinstance(doctors, dict):
+        doctors = [doctors]
+
+    has_no_match = not doctors
 
     if has_no_match and search_state.get("clinic") and not search_state.get("any_clinic"):
         if search_state.get("asked_location_prompted"):
@@ -349,142 +348,67 @@ Clinic Services and Locations Data:
         add_message(session_id, "assistant", reply)
         return reply
 
-    # Single search result
-    if (
-        result
-        and result["type"] == "search"
-        and len(result["data"]) == 1
-    ):
-        doctor = result["data"][0]
-        update_search_state(session_id, {"last_recommended_doctor": doctor})
+    if has_no_match:
+        reply = build_no_availability_reply(search_state)
+        add_message(session_id, "assistant", reply)
+        return reply
 
+    # Format doctors results
+    if len(doctors) == 1:
+        doctor = doctors[0]
+        update_search_state(session_id, {"last_recommended_doctor": doctor})
         avail_text = doctor.get("availability_summary") or doctor.get("availability")
+        interest = search_state.get("interest")
+        role = doctor.get("role") or doctor.get("provider_type") or "GP"
+        clinic_name = doctor.get("clinic")
+
+        if interest:
+            intro = f"**{doctor['doctor']}** is available for {interest} at GP UltraHub {clinic_name}:"
+        elif search_state.get("day"):
+            intro = f"**{doctor['doctor']}** ({role}) is available at GP UltraHub {clinic_name} on {search_state.get('day').capitalize()}:"
+        else:
+            intro = f"**{doctor['doctor']}** ({role}) is available at GP UltraHub {clinic_name}:"
+
         reply = (
-            f"**{doctor['doctor']}** is available at GP UltraHub {doctor['clinic']}.\n\n"
-            f"Availability: {avail_text}\n\n"
+            f"{intro}\n\n"
+            f"Available: {avail_text}\n\n"
             f"Book here:\n{doctor['booking_url']}"
         )
         add_message(session_id, "assistant", reply)
         return reply
 
-    # Multiple search results
-    if (
-        result
-        and result["type"] == "search"
-        and result["data"]
-        and len(result["data"]) > 1
-    ):
-        doctors = result["data"]
-        lines = []
-        for d in doctors:
-            avail_text = d.get("availability_summary") or d.get("availability")
-            lines.append(
-                f"**{d['doctor']}** — GP UltraHub {d['clinic']}\n"
-                f"Available: {avail_text}\n"
-                f"Book here: {d['booking_url']}"
-            )
-
-        intro = "Here are the available options across our locations:" if search_state.get("any_clinic") else "Here are a few suitable options:"
-        reply = (
-            f"{intro}\n\n" + "\n\n".join(lines) +
-            "\n\nYou can click any of the booking links above to select your preferred appointment time."
+    # Multiple matching doctors
+    update_search_state(session_id, {"last_recommended_doctor": doctors[0]})
+    lines = []
+    for d in doctors:
+        avail_text = d.get("availability_summary") or d.get("availability")
+        lines.append(
+            f"**{d['doctor']}** — GP UltraHub {d['clinic']}\n"
+            f"Available: {avail_text}\n"
+            f"Book here: {d['booking_url']}"
         )
-        add_message(session_id, "assistant", reply)
-        return reply
 
-    # Search with no matches at all
-    if (
-        result
-        and result["type"] == "search"
-        and not result["data"]
-    ):
-        reply = build_no_availability_reply(search_state)
-        add_message(session_id, "assistant", reply)
-        return reply
+    req_day = search_state.get("day")
+    interest = search_state.get("interest")
+    clinic_name = search_state.get("clinic")
 
-    # Single recommendation
-    if (
-        result
-        and result["type"] == "recommend"
-        and result["data"]
-    ):
-        doctor = result["data"]
-        update_search_state(session_id, {"last_recommended_doctor": doctor})
+    if search_state.get("any_clinic"):
+        intro = "Here are the available doctor options across our locations:"
+    elif interest and req_day:
+        intro = f"Here are the available doctors for {interest} at GP UltraHub {clinic_name} on {req_day.capitalize()}:"
+    elif interest:
+        intro = f"Here are the available doctors for {interest} at GP UltraHub {clinic_name}:"
+    elif req_day:
+        intro = f"Here are the available doctor options at GP UltraHub {clinic_name} on {req_day.capitalize()}:"
+    else:
+        intro = f"Here are our available General Practitioners at GP UltraHub {clinic_name}:"
 
-        interest = search_state.get("interest")
-        role = doctor.get("role") or doctor.get("provider_type") or "GP"
-        avail_text = doctor.get("availability_summary") or doctor.get("availability")
-
-        if interest:
-            reply = (
-                f"**{doctor['doctor']}** is a great match for {interest} at GP UltraHub {doctor['clinic']}.\n\n"
-                f"Available: {avail_text}\n\n"
-                f"Book here:\n{doctor['booking_url']}"
-            )
-        else:
-            reply = (
-                f"**{doctor['doctor']}** ({role}) is available at GP UltraHub {doctor['clinic']}.\n\n"
-                f"Available: {avail_text}\n\n"
-                f"Book here:\n{doctor['booking_url']}"
-            )
-
-        add_message(session_id, "assistant", reply)
-        return reply
-
-    # Availability search
-    if (
-        result
-        and result["type"] == "availability_search"
-    ):
-        doctors = result.get("data") or []
-        if not doctors:
-            reply = build_no_availability_reply(search_state)
-            add_message(session_id, "assistant", reply)
-            return reply
-
-        req_day = (search_state.get("day") or "").capitalize()
-
-        lines = []
-        for doctor in doctors:
-            avail_text = doctor.get("availability_summary") or doctor.get("availability")
-            lines.append(
-                f"**{doctor['doctor']}** — GP UltraHub {doctor['clinic']}\n"
-                f"Available: {avail_text}\n"
-                f"Book here: {doctor['booking_url']}"
-            )
-
-        if req_day == "Yesterday":
-            intro = "Yesterday's appointment schedule has passed. Here are our upcoming available doctor options:"
-        else:
-            intro = "Here are the available doctor options and their time patches:"
-
-        reply = (
-            f"{intro}\n\n" +
-            "\n\n".join(lines) +
-            "\n\nYou can click any of the booking links above to select your appointment."
-        )
-        add_message(session_id, "assistant", reply)
-        return reply
-
-    # Recommend intent but no matching doctor found
-    if (
-        result
-        and result["type"] == "recommend"
-        and result["data"] is None
-    ):
-        requested_name = search_state.get("doctor")
-        if requested_name:
-            reply = (
-                f"I'm sorry, I couldn't find a doctor named \"{requested_name}\" at GP UltraHub. "
-                "Could you double-check the spelling, or let me know what you'd like to be seen for?"
-            )
-        else:
-            reply = (
-                "I couldn't find a matching doctor for that. Could you tell me a bit more "
-                "about what you need or if another location would work?"
-            )
-        add_message(session_id, "assistant", reply)
-        return reply
+    reply = (
+        f"{intro}\n\n" + "\n\n".join(lines) +
+        "\n\nYou can click any of the booking links above to select your preferred appointment time."
+    )
+    add_message(session_id, "assistant", reply)
+    return reply
 
     # Step 5: Fallback if result is None
     if result is None:
