@@ -186,7 +186,10 @@ def filter_doctor_patches(doctor_obj, day=None, preferred_time=None):
             return True, [], avail
         return False, [], ""
 
-    if not day and not preferred_time:
+    is_general_time = not preferred_time or str(preferred_time).lower() in [
+        "any time", "anytime", "any", "no preference", "earliest", "earliest available"
+    ]
+    if not day and is_general_time:
         next_avail = get_next_available_time(doctor_obj)
         return True, patches, next_avail
 
@@ -256,6 +259,8 @@ def search_doctors(
     intent = {
         "doctor": doctor,
         "clinic": clinic,
+        "day": day,
+        "preferred_time": preferred_time,
         "provider_type": provider_type,
         "interest": interest,
         "gender": gender,
@@ -277,13 +282,13 @@ def search_doctors(
             doc_copy["availability_summary"] = item.get("availability")
         filtered.append(doc_copy)
 
-    with_live_slots = [
-        d for d in filtered
-        if d.get("availability_summary") and d.get("availability_summary").strip().lower() != "call clinic to book"
-    ]
-    if with_live_slots:
-        return with_live_slots
+    def _avail_sort_key(d):
+        summary = d.get("availability_summary") or d.get("availability") or ""
+        has_live = 1 if summary and summary.strip().lower() != "call clinic to book" else 0
+        avail_time = parse_availability(summary)
+        return (-has_live, avail_time)
 
+    filtered.sort(key=_avail_sort_key)
     return filtered
 
 
@@ -436,15 +441,11 @@ def availability_search(intent):
             doc_copy["availability_summary"] = patch_summary
         results.append(doc_copy)
 
-    results.sort(
-        key=lambda d: parse_availability(d.get("availability_summary") or d.get("availability"))
-    )
+    def _avail_sort_key(d):
+        summary = d.get("availability_summary") or d.get("availability") or ""
+        has_live = 1 if summary and summary.strip().lower() != "call clinic to book" else 0
+        avail_time = parse_availability(summary)
+        return (-has_live, avail_time)
 
-    with_live_slots = [
-        d for d in results
-        if d.get("availability_summary") and d.get("availability_summary").strip().lower() != "call clinic to book"
-    ]
-    if with_live_slots:
-        return with_live_slots[:5]
-
-    return results[:5]
+    results.sort(key=_avail_sort_key)
+    return results
