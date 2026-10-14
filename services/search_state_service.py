@@ -42,7 +42,18 @@ def update_search_state(session_id, intent):
 
     for key, value in intent.items():
         if value is not None:
-            state[key] = value
+            if key == "day" and value == "CLEAR_DAY":
+                state["day"] = None
+                state["time_prompted"] = False
+            else:
+                state[key] = value
+
+    # If any_time is selected, clear prior day if it was set
+    if intent.get("preferred_time") and str(intent.get("preferred_time")).lower() in ["any time", "anytime", "any", "no preference", "whenever"]:
+        state["day"] = None
+
+    if intent.get("day") and str(state.get("preferred_time")).lower() in ["any time", "anytime", "any", "no preference", "whenever"]:
+        state["preferred_time"] = None
 
     # If day, preferred_time, or prior availability_search is active in state, keep intent as availability_search unless specific interest/doctor override is given
     if (state.get("day") or state.get("preferred_time") or was_availability) and not intent.get("interest") and not intent.get("doctor"):
