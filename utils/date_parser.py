@@ -175,6 +175,9 @@ def match_patch_to_query(patch, day_query=None, time_query=None):
     # 2. Time Match
     if time_query:
         t_q = time_query.strip().lower()
+        if t_q in ["any time", "anytime", "any", "no preference", "earliest", "earliest available"]:
+            return True
+
         st_mins = parse_time_to_minutes(patch.get("start_time"))
         et_mins = parse_time_to_minutes(patch.get("end_time"))
 
